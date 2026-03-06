@@ -19,42 +19,72 @@ function BatchDetailsModal({
   // Store the original unsorted batches to maintain order
   const [originalBatches, setOriginalBatches] = useState([]);
   
+  // Track the last added batch key to select it automatically
+  const [lastAddedBatchKey, setLastAddedBatchKey] = useState(null);
+  
   console.log("this is batch data", batchMedicineData);
   
-  // Update original batches when props change, but preserve order
+  // Helper function to check if batch is mismatched
+  const isBatchMismatched = (batch) => {
+    return batch.isMismatchBatch || batch.isMismatchExpiry || batch.isMismatchMrp;
+  };
+
+  // Update original batches when props change - NEW BATCHES ADDED AT THE TOP
   useEffect(() => {
     if (batches.length > 0) {
-      // If we have original batches, try to preserve the order
+      // If we have original batches, identify new batches and add them at the top
       if (originalBatches.length > 0) {
-        // Create a map of existing batches by their composite key
-        const batchMap = new Map();
-        originalBatches.forEach((batch, idx) => {
+        // Create a Set of existing batch keys for quick lookup
+        const existingKeys = new Set(
+          originalBatches.map(batch => `${batch.batch}_${batch.psrlno}`)
+        );
+        
+        // Separate new batches from existing ones
+        const newBatches = [];
+        const existingBatches = [];
+        
+        batches.forEach(batch => {
           const key = `${batch.batch}_${batch.psrlno}`;
-          batchMap.set(key, { batch, index: idx });
-        });
-        
-        // Reorder new batches to match original order as much as possible
-        const reorderedBatches = [];
-        const remainingBatches = [...batches];
-        
-        // First, add batches in the original order if they still exist
-        originalBatches.forEach(origBatch => {
-          const key = `${origBatch.batch}_${origBatch.psrlno}`;
-          const existingIndex = remainingBatches.findIndex(b => 
-            `${b.batch}_${b.psrlno}` === key
-          );
-          if (existingIndex !== -1) {
-            reorderedBatches.push(remainingBatches[existingIndex]);
-            remainingBatches.splice(existingIndex, 1);
+          if (existingKeys.has(key)) {
+            existingBatches.push(batch);
+          } else {
+            newBatches.push(batch);
           }
         });
         
-        // Then add any new batches at the end
-        reorderedBatches.push(...remainingBatches);
+        // Reorder existing batches to maintain original order
+        const reorderedExisting = [];
+        const remainingExisting = [...existingBatches];
+        
+        originalBatches.forEach(origBatch => {
+          const key = `${origBatch.batch}_${origBatch.psrlno}`;
+          const existingIndex = remainingExisting.findIndex(b => 
+            `${b.batch}_${b.psrlno}` === key
+          );
+          if (existingIndex !== -1) {
+            reorderedExisting.push(remainingExisting[existingIndex]);
+            remainingExisting.splice(existingIndex, 1);
+          }
+        });
+        
+        // Add any remaining existing batches
+        reorderedExisting.push(...remainingExisting);
+        
+        // NEW BATCHES GO AT THE TOP, followed by existing batches
+        const reorderedBatches = [...newBatches, ...reorderedExisting];
         
         // Only update if the order is different
         if (JSON.stringify(reorderedBatches) !== JSON.stringify(originalBatches)) {
           setOriginalBatches(reorderedBatches);
+          
+          // If new batches were added, store the key of the first new batch (topmost)
+          if (newBatches.length > 0) {
+            // The first new batch will be at the top (index 0)
+            const firstNewBatch = newBatches[0];
+            const firstNewBatchKey = `${firstNewBatch.batch}_${firstNewBatch.psrlno}`;
+            console.log("New batch added at top with key:", firstNewBatchKey);
+            setLastAddedBatchKey(firstNewBatchKey);
+          }
         }
       } else {
         // First time, just store the batches as they come
@@ -93,30 +123,49 @@ function BatchDetailsModal({
   // Store the current batch key to maintain selection across updates
   const [currentBatchKey, setCurrentBatchKey] = useState(null);
 
-  // Reset selected index when batches change, but only if it's a different medicine
+  // Reset selected index when batches change, prioritizing newly added batch
   useEffect(() => {
-    // Don't reset if we have a current batch key and it still exists in the new batches
-    if (currentBatchKey && originalBatches.length > 0) {
-      // Try to find the same batch by its unique identifier (batch + psrlno)
+    if (originalBatches.length === 0) {
+      setSelectedBatchIndex(0);
+      setCurrentBatchKey(null);
+      return;
+    }
+
+    // First priority: Check if there's a newly added batch to select (at the top)
+    if (lastAddedBatchKey) {
+      const newBatchIndex = originalBatches.findIndex(b => 
+        `${b.batch}_${b.psrlno}` === lastAddedBatchKey
+      );
+      
+      if (newBatchIndex !== -1) {
+        console.log("Selecting newly added batch at index:", newBatchIndex);
+        setSelectedBatchIndex(newBatchIndex);
+        setCurrentBatchKey(lastAddedBatchKey);
+        // Clear the last added batch key after selecting it
+        setLastAddedBatchKey(null);
+        return;
+      }
+    }
+    
+    // Second priority: Try to maintain previously selected batch if it still exists
+    if (currentBatchKey) {
       const sameBatchIndex = originalBatches.findIndex(b => 
         `${b.batch}_${b.psrlno}` === currentBatchKey
       );
       
       if (sameBatchIndex !== -1) {
-        // If found, select that same batch
         setSelectedBatchIndex(sameBatchIndex);
         return;
       }
     }
     
-    // Otherwise reset to first batch
+    // Default: Select first batch (which will be the topmost/newest)
     setSelectedBatchIndex(0);
     if (originalBatches.length > 0) {
       setCurrentBatchKey(`${originalBatches[0].batch}_${originalBatches[0].psrlno}`);
-    } else {
-      setCurrentBatchKey(null);
     }
-  }, [originalBatches]);
+    
+  }, [originalBatches, lastAddedBatchKey]);
 
   // Update current batch key when selected batch changes
   useEffect(() => {
@@ -200,11 +249,6 @@ function BatchDetailsModal({
       }
     }
   }, [selectedBatchIndex, originalBatches]);
-
-  // Helper function to check if batch is mismatched
-  const isBatchMismatched = (batch) => {
-    return batch.isMismatchBatch || batch.isMismatchExpiry || batch.isMismatchMrp;
-  };
 
   // Handle add batch button click
   const handleAddBatchClick = () => {
@@ -304,10 +348,10 @@ function BatchDetailsModal({
             <div className="flex justify-between items-center">
               <div>
                 <h3 className="text-3xl font-bold text-blue-700">
-                  Batch Details
+                  {itemName}
                 </h3>
                 <p className="text-2xl font-bold text-gray-800 mt-2">
-                  {itemName} <span className="text-gray-400 mx-4 text-xl">|</span> <span className="text-xl font-normal">Code:</span> {itemCode}
+                 <span className="text-xl font-normal">Code:</span> {itemCode}
                 </p>
               </div>
               <button

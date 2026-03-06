@@ -1117,38 +1117,7 @@ function Header({
                 )}
 
                 <div className="h-10 w-px bg-blue-200"></div>
-                
-                <div className="text-center">
-                  <div className="text-lg font-bold text-blue-600">
-                    {uniqueItemsCount}/{progress.totalItems}
-                  </div>
-                  <div className="text-xs text-gray-500">Scanned</div>
-                </div>
 
-                <div className="relative">
-                  <div className="w-12 h-12">
-                    <svg className="w-full h-full" viewBox="0 0 36 36">
-                      <path
-                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                        fill="none"
-                        stroke="#E5E7EB"
-                        strokeWidth="3"
-                      />
-                      <path
-                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                        fill="none"
-                        stroke="#2563EB"
-                        strokeWidth="3"
-                        strokeDasharray={`${progress.percentage}, 100`}
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-xs font-bold text-gray-900">
-                        {progress.percentage}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
               </div>
             )}
           </div>
