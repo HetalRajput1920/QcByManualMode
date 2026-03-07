@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import ManualMedicineAddForm from './addbatch';
 import BatchDetailsModal from './BatchDetailsmodal';
+import HistoryModal from './invHistoryModal'; // Import the HistoryModal component
 
 function MedicineList({
   selectedInvoice,
@@ -24,6 +25,9 @@ function MedicineList({
   const [showBatchDetailsModal, setShowBatchDetailsModal] = useState(false);
   const [selectedItemCode, setSelectedItemCode] = useState('');
   const [selectedItemName, setSelectedItemName] = useState('');
+
+  // State for history modal
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all');
@@ -92,6 +96,11 @@ function MedicineList({
     setSelectedItemCode(itemCode);
     setSelectedItemName(itemName);
     setShowBatchDetailsModal(true);
+  };
+
+  // Function to open history modal
+  const openHistoryModal = () => {
+    setShowHistoryModal(true);
   };
 
   const getLiveBatchesForSelectedItem = () => {
@@ -172,7 +181,8 @@ function MedicineList({
             status: 'not-scanned',
             pack: inv.Pack || inv.pack || '',
             type: 'expected',
-            clqty: inv.clqty || 0
+            clqty: inv.clqty || 0,
+            pickerName: inv.PickerName || '' // Add pickerName for expected batches
           });
         } else {
           // Batch exists (maybe from scans), update expected quantity
@@ -349,7 +359,8 @@ function MedicineList({
       Expiry: item.Expiry,
       MRP: item.MRP,
       Qty: item.Qty,
-      NewQty: item.NewQty
+      NewQty: item.NewQty,
+      PickerName: item.PickerName || '' // Add pickerName for not scanned items
     }));
   };
 
@@ -403,13 +414,14 @@ function MedicineList({
         Status: medicine.Status,
         TrayID: medicine.TrayID,
         ItemSequence: medicine.ItemSequence,
-        PickerID: medicine.PickerID,
-        CheckerID: medicine.CheckerID,
+        PickerID: medicine.PickerID || 0,
+        CheckerID: medicine.CheckerID || 0,
         PickQty: medicine.PickQty,
         PickTime: medicine.PickTime,
         CheckTime: medicine.CheckTime,
         PorderNo: medicine.PorderNo,
-        clqty: medicine.clqty || 0
+        clqty: medicine.clqty || 0,
+        PickerName: medicine.PickerName || '' // Add pickerName for scanned medicines
       };
     } else {
       const scannedQtyToAdd = medicine.scannedQty !== undefined ? medicine.scannedQty :
@@ -518,7 +530,8 @@ function MedicineList({
       invoiceBatch: invoiceItem?.Batch,
       invoiceNewQty: invoiceItem?.NewQty,
       invoiceQty: invoiceItem?.Qty,
-      clqty: invoiceItem?.clqty || medicine.clqty || 0
+      clqty: invoiceItem?.clqty || medicine.clqty || 0,
+      pickerName: invoiceItem?.PickerName || medicine.PickerName || '' // Add pickerName from invoice or medicine
     };
   });
 
@@ -587,7 +600,8 @@ function MedicineList({
           expectedQty: itemExpectedQty,
           hasMismatch: false,
           batches: [],
-          processedPsrlno: new Set()
+          processedPsrlno: new Set(),
+          pickerName: firstInvoice?.PickerName || medicine.PickerName || '' // Add pickerName at item level
         });
       }
 
@@ -619,7 +633,8 @@ function MedicineList({
           isMismatchExpiry: medicine.isMismatchExpiry || false,
           isMismatchMrp: medicine.isMismatchMrp || false,
           psrlno: psrlno,
-          status: medicine.status || 'pending'
+          status: medicine.status || 'pending',
+          pickerName: matchingInvoice?.PickerName || medicine.PickerName || item.pickerName || '' // Add pickerName at batch level
         };
         item.batches.push(batch);
       }
@@ -658,7 +673,8 @@ function MedicineList({
           expectedQty: 0,
           hasMismatch: false,
           batches: [],
-          processedPsrlno: new Set()
+          processedPsrlno: new Set(),
+          pickerName: item.PickerName || '' // Add pickerName for not scanned items
         });
       }
 
@@ -686,7 +702,8 @@ function MedicineList({
             isMismatchExpiry: false,
             isMismatchMrp: false,
             psrlno: psrlno,
-            status: 'not-scanned'
+            status: 'not-scanned',
+            pickerName: item.PickerName || existingItem.pickerName || '' // Add pickerName for not scanned batches
           });
         }
         
@@ -702,6 +719,12 @@ function MedicineList({
       item.hasMismatch = item.batches.some(b => 
         b.isMismatchBatch || b.isMismatchExpiry || b.isMismatchMrp
       );
+
+      // Get the first available pickerName from batches or keep existing
+      const firstBatchWithPicker = item.batches.find(b => b.pickerName);
+      if (firstBatchWithPicker && !item.pickerName) {
+        item.pickerName = firstBatchWithPicker.pickerName;
+      }
 
       // Sort batches - simplified, no timestamp
       item.batches.sort((a, b) => {
@@ -768,7 +791,8 @@ function MedicineList({
       const searchLower = searchTerm.toLowerCase().trim();
       filtered = filtered.filter(item =>
         item.name?.toLowerCase().includes(searchLower) ||
-        item.code?.toLowerCase().includes(searchLower)
+        item.code?.toLowerCase().includes(searchLower) ||
+        item.pickerName?.toLowerCase().includes(searchLower) // Add pickerName to search
       );
     }
 
@@ -791,6 +815,8 @@ function MedicineList({
           return safeString(a.code).localeCompare(safeString(b.code));
         case 'name': 
           return safeString(a.name).localeCompare(safeString(b.name));
+        case 'pickerName': // Add sorting by pickerName
+          return safeString(a.pickerName).localeCompare(safeString(b.pickerName));
         case 'scannedQty': 
           return (b.scannedQty || 0) - (a.scannedQty || 0);
         case 'expectedQty': 
@@ -981,7 +1007,8 @@ function MedicineList({
         PickTime: medicine.PickTime || new Date().toISOString().replace('T', ' ').substring(0, 19),
         CheckTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
         PorderNo: medicine.PorderNo || 0,
-        clqty: medicine.clqty || 0
+        clqty: medicine.clqty || 0,
+        PickerName: medicine.PickerName || "" // Add PickerName to payload
       };
 
       if (basePayload.IsDelete === 8) basePayload.NewBatch = `# ${medicine.actualBatch}`;
@@ -1145,7 +1172,7 @@ function MedicineList({
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (showDeleteConfirm || showCompleteConfirm || showManualMedicineModal || showBatchDetailsModal) {
+      if (showDeleteConfirm || showCompleteConfirm || showManualMedicineModal || showBatchDetailsModal || showHistoryModal) {
         handlePopupKeyDown(event);
         return;
       }
@@ -1184,7 +1211,7 @@ function MedicineList({
       window.removeEventListener('keydown', handleKeyDown);
       if (keyRepeatTimerRef.current) clearTimeout(keyRepeatTimerRef.current);
     };
-  }, [displayList, selectedMedicineIndex, showDeleteConfirm, showCompleteConfirm, showManualMedicineModal, showBatchDetailsModal, shouldShowCompleteButton]);
+  }, [displayList, selectedMedicineIndex, showDeleteConfirm, showCompleteConfirm, showManualMedicineModal, showBatchDetailsModal, showHistoryModal, shouldShowCompleteButton]);
 
   const handlePopupKeyDown = (event) => {
     switch (event.key) {
@@ -1199,6 +1226,8 @@ function MedicineList({
           setShowBatchDetailsModal(false);
           setSelectedItemCode('');
           setSelectedItemName('');
+        } else if (showHistoryModal) {
+          setShowHistoryModal(false);
         }
         break;
       case 'Enter':
@@ -1238,6 +1267,13 @@ function MedicineList({
         onUpdateQuantity={handleBatchQuantityUpdate}
         onAddBatch={handleAddBatch}
         key={selectedItemCode}
+      />
+
+      {/* History Modal */}
+      <HistoryModal 
+        isVisible={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+        token={token}
       />
 
       <div className="bg-white rounded-lg shadow-lg border border-gray-200 h-full flex flex-col" style={{ minWidth: '1200px' }}>
@@ -1297,8 +1333,8 @@ function MedicineList({
         )}
 
         {/* Fixed Header Section */}
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-          <div className="flex justify-between items-center mb-4">
+        <div className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+          <div className="p-4 flex justify-between items-center">
             <h2 className="text-xl font-bold text-gray-900">
               {selectedInvoice ? `Invoice: ${selectedInvoice.InvoiceNo}` : 'Medicine Verification'}
             </h2>
@@ -1310,11 +1346,8 @@ function MedicineList({
             </div>
           </div>
 
-          {/* Overall Progress Bar */}
- 
-
           {/* Controls */}
-          <div className="flex space-x-3">
+          <div className="pl-4 pr-4 pb-4 flex space-x-3">
             <input
               type="text"
               placeholder="Search medicines..."
@@ -1331,61 +1364,40 @@ function MedicineList({
                 <option key={key} value={key}>{label}</option>
               ))}
             </select>
-                        {selectedInvoice && (
-            <div >
-              <OverallProgressBar 
-                scannedItems={stats.itemsWithScans} 
-                totalItems={stats.uniqueItems} 
-              />
-            </div>
-          )}
-
-
-            {shouldShowCompleteButton && (
-              <button
-                onClick={showCompleteVerificationConfirm}
-                className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg text-base font-bold shadow-md hover:shadow-lg transition-all duration-200"
-              >
-                Complete Verification
-              </button>
+            {selectedInvoice && (
+              <div>
+                <OverallProgressBar 
+                  scannedItems={stats.itemsWithScans} 
+                  totalItems={stats.uniqueItems} 
+                />
+              </div>
             )}
-          </div>
 
-          {/* Fixed Table Header */}
-          <div className="mt-4 border-t border-gray-200 pt-4">  
-            <div className="grid grid-cols-[50px_60px_minmax(100px,1fr)_105px_125px_120px_100px_100px_180px] gap-15 px-6">
-              <div className="py-3 rounded-l-lg font-bold text-gray-700 uppercase text-sm">
-                S.No
-              </div>
-              <div className="py-3 font-bold text-gray-700 uppercase text-sm ">
-                Location
-              </div>
-              <div className="py-3 font-bold text-gray-700 uppercase text-sm ml-8">
-                Item Name
-              </div>
-              <div className="py-3 font-bold text-gray-700 uppercase text-sm  ">
-                CL Qty
-              </div>
-              <div className="py-3 font-bold text-gray-700 uppercase text-sm ">
-                Pack
-              </div>
-              <div className="py-3 font-bold text-gray-700 uppercase text-sm ml-12" >
-                Expiry
-              </div>
-              <div className="py-3 font-bold text-gray-700 uppercase text-sm ml-10">
-                MRP
-              </div>
-              <div className="py-3 font-bold text-gray-700 uppercase text-sm ml-10">
-                Progress
-              </div>
-              <div className="py-3 rounded-r-lg font-bold text-gray-700 uppercase text-sm ml-10">
-                Scanned Qty
-              </div>
+            <div className="flex space-x-2">
+              {/* History Button */}
+              <button
+                onClick={openHistoryModal}
+                className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-base font-bold shadow-md hover:shadow-lg transition-all duration-200 flex items-center space-x-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>History</span>
+              </button>
+
+              {shouldShowCompleteButton && (
+                <button
+                  onClick={showCompleteVerificationConfirm}
+                  className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg text-base font-bold shadow-md hover:shadow-lg transition-all duration-200"
+                >
+                  Complete Verification
+                </button>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Scrollable Table Body */}
+        {/* Scrollable Table with Sticky Header */}
         <div className="flex-1 overflow-auto bg-white" ref={tableRef}>
           {!selectedInvoice ? (
             <div className="flex flex-col items-center justify-center h-64 text-gray-500">
@@ -1404,75 +1416,62 @@ function MedicineList({
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {displayList.map((item, index) => (
-                    <tr
-                      key={item.code}
-                      data-index={index}
-                      onClick={() => setSelectedMedicineIndex(index)}
-                      className={`cursor-pointer transition-colors duration-200 ${getRowBackgroundColor(index)}`}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-base font-semibold text-gray-900">
-                          {index + 1}
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-purple-100 sticky top-0 z-10 shadow-sm">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">S.No</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Loc</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Item Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">CL Qty</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Pack</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Expiry</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">MRP</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Picker</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Progress</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Scanned</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {displayList.map((item, index) => (
+                  <tr
+                    key={item.code}
+                    data-index={index}
+                    onClick={() => setSelectedMedicineIndex(index)}
+                    className={`cursor-pointer transition-colors duration-200 ${getRowBackgroundColor(index)}`}
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap text-base font-semibold text-gray-900">{index + 1}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-base font-medium text-gray-900">{item.location}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-base font-bold text-gray-900 max-w-xs truncate" title={item.name}>
+                        {item.name}
+                        {item.hasMismatch && (
+                          <span className="ml-2 px-2 py-1 text-xs font-bold bg-purple-100 text-purple-700 rounded-full">Mismatch</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-base font-medium text-gray-900">{item.clqty || 0}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-base font-medium text-gray-900">{item.pack}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-base font-medium text-gray-900">{item.expiry}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-base font-bold text-gray-900">₹{typeof item.mrp === 'number' ? item.mrp.toFixed(2) : item.mrp}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-base font-medium text-blue-600" title={item.pickerName}>{item.pickerName || 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <ProgressCircle scanned={item.scannedQty} expected={item.expectedQty} />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center space-x-2">
+                        <div className={`text-lg font-bold ${getQuantityColor(item.scannedQty, item.expectedQty)}`}>
+                          {item.scannedQty}
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-base font-medium text-gray-900">
-                          {item.location}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-base font-bold text-gray-900 max-w-xs truncate" title={item.name}>
-                          {item.name}
-                          {item.hasMismatch && (
-                            <span className="ml-2 px-2 py-1 text-xs font-bold bg-purple-100 text-purple-700 rounded-full">Mismatch</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-base font-medium text-gray-900">
-                          {item.clqty || 0}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-base font-medium text-gray-900">
-                          {item.pack}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-base font-medium text-gray-900">
-                          {item.expiry}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-base font-bold text-gray-900">
-                          ₹{typeof item.mrp === 'number' ? item.mrp.toFixed(2) : item.mrp}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <ProgressCircle scanned={item.scannedQty} expected={item.expectedQty} />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center space-x-2">
-                          <div className={`text-lg font-bold ${getQuantityColor(item.scannedQty, item.expectedQty)}`}>
-                            {item.scannedQty}
-                          </div>
-                          <span className="text-gray-400 text-lg">/</span>
-                          <div className="text-lg font-bold text-gray-900">
-                            {item.expectedQty}
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div ref={listEndRef} />
-            </div>
+                        <span className="text-gray-400 text-lg">/</span>
+                        <div className="text-lg font-bold text-gray-900">{item.expectedQty}</div>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
+          <div ref={listEndRef} />
         </div>
 
         {/* Footer with summary */}
@@ -1489,7 +1488,6 @@ function MedicineList({
                   <span className="ml-3 text-green-600 text-xs font-semibold">Enter: View Batch Details</span>
                 </div>
               )}
-
             </div>  
           </div>
         )}
