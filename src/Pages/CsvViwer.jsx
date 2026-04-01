@@ -1187,7 +1187,6 @@ const createMergedMedicineData = ({
 
     resetWorkflow();
     setShowCompletionModal(false);
-    alert('Invoice verification completed successfully!');
   };
 
   // Calculate unique scanned items by item code + batch only (EXCLUDING PENDING ITEMS)
@@ -1258,7 +1257,6 @@ const createMergedMedicineData = ({
 
   // Handle verification completion from MedicineList
   const handleVerificationComplete = (result) => {
-    alert('Verification data submitted successfully!');
     clearLocalStorage();
     resetWorkflow();
   };

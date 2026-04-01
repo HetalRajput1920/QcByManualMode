@@ -7,17 +7,17 @@ const ManualMedicineAddForm = ({
   setIsvisible
 }) => {
   const API_BASE_URL = 'http://192.168.1.110:3000/api/ocr';
-  
+
   // Modal states
   const [currentStep, setCurrentStep] = useState(1);
   const [internalIsVisible, setInternalIsVisible] = useState(isVisible);
-  
+
   // Medicine selection state
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredMedicines, setFilteredMedicines] = useState([]);
   const [selectedMedicine, setSelectedMedicine] = useState(null);
   const [selectedMedicineIndex, setSelectedMedicineIndex] = useState(-1);
-  
+
   // Batch selection state
   const [batchSearchTerm, setBatchSearchTerm] = useState('');
   const [availableBatches, setAvailableBatches] = useState([]);
@@ -25,7 +25,7 @@ const ManualMedicineAddForm = ({
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [selectedBatchIndex, setSelectedBatchIndex] = useState(-1);
   const [isLoadingBatches, setIsLoadingBatches] = useState(false);
-  
+
   // Form state
   const [formData, setFormData] = useState({
     medicineName: '',
@@ -34,7 +34,7 @@ const ManualMedicineAddForm = ({
     mrp: '',
     pack: ''
   });
-  
+
   // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
@@ -89,7 +89,7 @@ const ManualMedicineAddForm = ({
         const nameB = String(b.name || b.ItName || '').toLowerCase();
         return nameA.localeCompare(nameB);
       });
-      
+
       setFilteredMedicines(sortedMedicines);
     }
   }, [medicines]);
@@ -117,12 +117,12 @@ const ManualMedicineAddForm = ({
     if (selectedMedicineIndex >= 0 && medicineItemRefs.current[selectedMedicineIndex]) {
       const selectedElement = medicineItemRefs.current[selectedMedicineIndex];
       const container = medicineListRef.current;
-      
+
       if (selectedElement && container) {
         const containerHeight = container.clientHeight;
         const elementTop = selectedElement.offsetTop - container.offsetTop;
         const elementBottom = elementTop + selectedElement.offsetHeight;
-        
+
         if (elementTop < container.scrollTop) {
           container.scrollTo({
             top: elementTop - 20,
@@ -143,12 +143,12 @@ const ManualMedicineAddForm = ({
     if (selectedBatchIndex >= 0 && batchItemRefs.current[selectedBatchIndex]) {
       const selectedElement = batchItemRefs.current[selectedBatchIndex];
       const container = batchListRef.current;
-      
+
       if (selectedElement && container) {
         const containerHeight = container.clientHeight;
         const elementTop = selectedElement.offsetTop - container.offsetTop;
         const elementBottom = elementTop + selectedElement.offsetHeight;
-        
+
         if (elementTop < container.scrollTop) {
           container.scrollTo({
             top: elementTop - 10,
@@ -167,7 +167,7 @@ const ManualMedicineAddForm = ({
   // FIXED: Search function with proper type handling
   const handleFilterMedicines = useCallback((searchValue) => {
     let results;
-    
+
     if (!searchValue.trim()) {
       // When no search, show all sorted medicines
       results = [...medicines].sort((a, b) => {
@@ -178,17 +178,17 @@ const ManualMedicineAddForm = ({
     } else {
       // Filter by name or code (case insensitive)
       const searchLower = searchValue.toLowerCase();
-      
+
       results = medicines.filter(medicine => {
         // Safely convert name to string
         const name = String(medicine.name || medicine.ItName || '').toLowerCase();
-        
+
         // Safely convert code to string - handle numbers, null, undefined
         const code = String(medicine.code || medicine.item_code || medicine.ItemCode || '').toLowerCase();
-        
+
         return name.includes(searchLower) || code.includes(searchLower);
       });
-      
+
       // Sort results alphabetically
       results.sort((a, b) => {
         const nameA = String(a.name || a.ItName || '').toLowerCase();
@@ -196,9 +196,9 @@ const ManualMedicineAddForm = ({
         return nameA.localeCompare(nameB);
       });
     }
-    
+
     setFilteredMedicines(results);
-    
+
     // Auto-select first item if there are results
     if (results.length > 0) {
       setSelectedMedicineIndex(0);
@@ -219,7 +219,7 @@ const ManualMedicineAddForm = ({
       });
       setFilteredBatches(filtered);
     }
-    
+
     // Auto-select first batch if there are results
     if (filteredBatches.length > 0) {
       setSelectedBatchIndex(0);
@@ -238,13 +238,13 @@ const ManualMedicineAddForm = ({
           'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('authToken')}`
         }
       });
-      
+
       if (response.data) {
         if (response.data.success === false) {
           setErrors({ batch: response.data.message || 'Failed to load batches' });
           return;
         }
-        
+
         let batches = [];
         if (response.data.batches) {
           batches = response.data.batches;
@@ -255,7 +255,7 @@ const ManualMedicineAddForm = ({
         } else if (typeof response.data === 'string') {
           batches = [response.data];
         }
-        
+
         const processedBatches = batches.map(batch => {
           if (typeof batch === 'string') {
             return batch;
@@ -267,12 +267,12 @@ const ManualMedicineAddForm = ({
             return String(batch);
           }
         }).filter(batch => batch && batch.trim() !== '');
-        
+
         // Sort batches
         const sortedBatches = processedBatches.sort((a, b) => {
           return String(a).localeCompare(String(b));
         });
-        
+
         if (sortedBatches.length > 0) {
           setAvailableBatches(sortedBatches);
           setFilteredBatches(sortedBatches);
@@ -302,7 +302,7 @@ const ManualMedicineAddForm = ({
   // Select medicine and move to step 2
   const handleSelectMedicine = async (medicine) => {
     setSelectedMedicine(medicine);
-    
+
     setFormData(prev => ({
       ...prev,
       medicineName: String(medicine.name || medicine.ItName || ''),
@@ -310,19 +310,19 @@ const ManualMedicineAddForm = ({
       pack: medicine.Pack || medicine.pack || '',
       expiryDate: medicine.Expiry || medicine.expiry || prev.expiryDate
     }));
-    
+
     setSelectedBatch(null);
     setAvailableBatches([]);
     setFilteredBatches([]);
     setBatchSearchTerm('');
     setSelectedBatchIndex(-1);
-    
+
     const itemCode = medicine.item_code || medicine.code || medicine.ItemCode;
     if (!itemCode) {
       setErrors({ batch: 'No item code found in medicine data' });
       return;
     }
-    
+
     setCurrentStep(2);
     await handleGetAllBatches(String(itemCode)); // Convert to string for API call
   };
@@ -334,7 +334,7 @@ const ManualMedicineAddForm = ({
       ...prev,
       batchNumber: batch
     }));
-    
+
     setTimeout(() => {
       submitButtonRef.current?.focus();
     }, 100);
@@ -356,13 +356,13 @@ const ManualMedicineAddForm = ({
         const nextIndex = selectedMedicineIndex < filteredMedicines.length - 1 ? selectedMedicineIndex + 1 : 0;
         setSelectedMedicineIndex(nextIndex);
         break;
-        
+
       case 'ArrowUp':
         e.preventDefault();
         const prevIndex = selectedMedicineIndex > 0 ? selectedMedicineIndex - 1 : filteredMedicines.length - 1;
         setSelectedMedicineIndex(prevIndex);
         break;
-        
+
       case 'Enter':
       case ' ':
         if (selectedMedicineIndex >= 0) {
@@ -370,7 +370,7 @@ const ManualMedicineAddForm = ({
           handleSelectMedicine(filteredMedicines[selectedMedicineIndex]);
         }
         break;
-        
+
       case 'Escape':
         e.preventDefault();
         closeModal();
@@ -388,13 +388,13 @@ const ManualMedicineAddForm = ({
         const nextIndex = selectedBatchIndex < filteredBatches.length - 1 ? selectedBatchIndex + 1 : 0;
         setSelectedBatchIndex(nextIndex);
         break;
-        
+
       case 'ArrowUp':
         e.preventDefault();
         const prevIndex = selectedBatchIndex > 0 ? selectedBatchIndex - 1 : filteredBatches.length - 1;
         setSelectedBatchIndex(prevIndex);
         break;
-        
+
       case 'Enter':
       case ' ':
         if (selectedBatchIndex >= 0) {
@@ -402,7 +402,7 @@ const ManualMedicineAddForm = ({
           handleSelectBatch(filteredBatches[selectedBatchIndex]);
         }
         break;
-        
+
       case 'Escape':
         e.preventDefault();
         handleBackToMedicineSelection();
@@ -428,7 +428,7 @@ const ManualMedicineAddForm = ({
     setIsSubmitting(true);
     setErrors({});
     setSuccessMessage('');
-    
+
     try {
       const apiData = {
         name: formData.medicineName,
@@ -438,7 +438,7 @@ const ManualMedicineAddForm = ({
         pack: formData.pack,
       };
 
-      const response = await axios.post('http://192.168.1.110:6800/api/ocr/qc_verify', apiData,{
+      const response = await axios.post('http://192.168.1.110:6800/api/ocr/qc_verify', apiData, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('authToken')}`
@@ -448,12 +448,12 @@ const ManualMedicineAddForm = ({
       if (response.data?.success) {
         // Show success message
         setSuccessMessage(`${formData.medicineName} added successfully!`);
-        
+
         // Close modal after a short delay
         setTimeout(() => {
           closeModal();
         }, 800);
-        
+
       } else {
         closeModal();
       }
@@ -475,7 +475,7 @@ const ManualMedicineAddForm = ({
   const resetForm = () => {
     setSearchTerm('');
     setBatchSearchTerm('');
-    
+
     // Reset filtered medicines to original sorted list
     if (medicines.length > 0) {
       const sortedMedicines = [...medicines].sort((a, b) => {
@@ -487,7 +487,7 @@ const ManualMedicineAddForm = ({
     } else {
       setFilteredMedicines([]);
     }
-    
+
     setSelectedMedicine(null);
     setAvailableBatches([]);
     setFilteredBatches([]);
@@ -564,7 +564,7 @@ const ManualMedicineAddForm = ({
               </div>
 
               {/* Medicine List */}
-              <div 
+              <div
                 ref={medicineListRef}
                 className="flex-1 overflow-y-auto px-6 pb-6"
               >
@@ -587,27 +587,25 @@ const ManualMedicineAddForm = ({
                       const medicineName = String(medicine.name || medicine.ItName || '');
                       const mrp = medicine.Mrp || medicine.mrp || '';
                       const pack = medicine.Pack || medicine.pack || '';
-                      
+
                       return (
                         <div
                           key={`${itemCode}_${index}`}
                           ref={el => medicineItemRefs.current[index] = el}
                           onClick={() => handleSelectMedicine(medicine)}
-                          className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                            selectedMedicineIndex === index
-                              ? 'border-blue-500 bg-blue-50 shadow-md' 
+                          className={`p-4 border rounded-lg cursor-pointer transition-all ${selectedMedicineIndex === index
+                              ? 'border-blue-500 bg-blue-50 shadow-md'
                               : 'border-gray-200 hover:bg-gray-50'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center gap-4">
-                            <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
-                              selectedMedicineIndex === index 
-                                ? 'bg-blue-100 text-blue-600' 
+                            <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${selectedMedicineIndex === index
+                                ? 'bg-blue-100 text-blue-600'
                                 : 'bg-gray-100 text-gray-500'
-                            }`}>
+                              }`}>
                               <span className="text-lg">💊</span>
                             </div>
-                            
+
                             <div className="flex-1 min-w-0">
                               <div className="flex justify-between items-center">
                                 <div>
@@ -762,7 +760,7 @@ const ManualMedicineAddForm = ({
               </div>
 
               {/* Batch List */}
-              <div 
+              <div
                 ref={batchListRef}
                 className="flex-1 overflow-y-auto px-6 pb-6"
               >
@@ -786,17 +784,15 @@ const ManualMedicineAddForm = ({
                           key={`${batchNumber}_${index}`}
                           ref={el => batchItemRefs.current[index] = el}
                           onClick={() => handleSelectBatch(batchNumber)}
-                          className={`p-3 border rounded-lg cursor-pointer text-center transition-all ${
-                            selectedBatch === batchNumber
-                              ? 'border-green-500 bg-green-50 shadow-md' 
+                          className={`p-3 border rounded-lg cursor-pointer text-center transition-all ${selectedBatch === batchNumber
+                              ? 'border-green-500 bg-green-50 shadow-md'
                               : selectedBatchIndex === index
-                              ? 'border-green-300 bg-green-100'
-                              : 'border-gray-200 hover:bg-gray-50'
-                          }`}
+                                ? 'border-green-300 bg-green-100'
+                                : 'border-gray-200 hover:bg-gray-50'
+                            }`}
                         >
-                          <div className={`font-medium truncate ${
-                            selectedBatch === batchNumber ? 'text-green-700' : 'text-gray-800'
-                          }`}>
+                          <div className={`font-medium truncate ${selectedBatch === batchNumber ? 'text-green-700' : 'text-gray-800'
+                            }`}>
                             {batchNumber}
                           </div>
                         </div>
@@ -853,11 +849,10 @@ const ManualMedicineAddForm = ({
                       ref={submitButtonRef}
                       onClick={handleSubmit}
                       disabled={isSubmitting || !selectedBatch}
-                      className={`px-5 py-2.5 rounded-lg font-medium ${
-                        selectedBatch
+                      className={`px-5 py-2.5 rounded-lg font-medium ${selectedBatch
                           ? 'bg-green-600 text-white hover:bg-green-700'
                           : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                      }`}
+                        }`}
                     >
                       {isSubmitting ? 'Adding...' : 'Add Medicine'}
                     </button>

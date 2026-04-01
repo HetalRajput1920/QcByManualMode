@@ -7,15 +7,15 @@ const ManualMedicineAddForm = ({
   setIsvisible
 }) => {
   const API_BASE_URL = 'http://192.168.1.110:3000/api/ocr';
-  
+
   // Modal states
   const [currentStep, setCurrentStep] = useState(1);
   const [internalIsVisible, setInternalIsVisible] = useState(isVisible);
-  
+
   // Medicine selection state (simplified for single medicine)
   const [selectedMedicine, setSelectedMedicine] = useState(null);
-  console.log("this is the selected medicine",selectedMedicine);
-  
+  console.log("this is the selected medicine", selectedMedicine);
+
   // Batch selection state
   const [batchSearchTerm, setBatchSearchTerm] = useState('');
   const [availableBatches, setAvailableBatches] = useState([]);
@@ -23,10 +23,10 @@ const ManualMedicineAddForm = ({
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [selectedBatchIndex, setSelectedBatchIndex] = useState(-1);
   const [isLoadingBatches, setIsLoadingBatches] = useState(false);
-  
+
   // Track if batch is selected for double enter handling
   const [isBatchSelected, setIsBatchSelected] = useState(false);
-  
+
   // Form state
   const [formData, setFormData] = useState({
     medicineName: '',
@@ -35,7 +35,7 @@ const ManualMedicineAddForm = ({
     mrp: '',
     pack: ''
   });
-  
+
   // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
@@ -79,7 +79,7 @@ const ManualMedicineAddForm = ({
     if (medicines.length > 0 && internalIsVisible) {
       const medicine = medicines[0];
       setSelectedMedicine(medicine);
-      
+
       setFormData({
         medicineName: String(medicine.name || medicine.ItName || ''),
         batchNumber: '',
@@ -87,7 +87,7 @@ const ManualMedicineAddForm = ({
         mrp: medicine.Mrp || medicine.mrp || '',
         pack: medicine.Pack || medicine.pack || ''
       });
-      
+
       // Automatically load batches for this medicine
       const itemCode = medicine.item_code || medicine.code || medicine.ItemCode;
       if (itemCode) {
@@ -104,7 +104,7 @@ const ManualMedicineAddForm = ({
     if (internalIsVisible && currentStep === 2) {
       // Use multiple attempts to ensure focus
       const focusAttempts = [100, 300, 500];
-      
+
       focusAttempts.forEach(delay => {
         setTimeout(() => {
           if (batchSearchInputRef.current && internalIsVisible) {
@@ -133,12 +133,12 @@ const ManualMedicineAddForm = ({
     if (selectedBatchIndex >= 0 && batchItemRefs.current[selectedBatchIndex]) {
       const selectedElement = batchItemRefs.current[selectedBatchIndex];
       const container = batchListRef.current;
-      
+
       if (selectedElement && container) {
         const containerHeight = container.clientHeight;
         const elementTop = selectedElement.offsetTop - container.offsetTop;
         const elementBottom = elementTop + selectedElement.offsetHeight;
-        
+
         if (elementTop < container.scrollTop) {
           container.scrollTo({
             top: elementTop - 10,
@@ -166,14 +166,14 @@ const ManualMedicineAddForm = ({
       });
       setFilteredBatches(filtered);
     }
-    
+
     // Auto-select first batch if there are results
     if (filteredBatches.length > 0) {
       setSelectedBatchIndex(0);
     } else {
       setSelectedBatchIndex(-1);
     }
-    
+
     // Reset batch selected state when search term changes
     setIsBatchSelected(false);
   }, [batchSearchTerm, availableBatches]);
@@ -189,13 +189,13 @@ const ManualMedicineAddForm = ({
           'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('authToken')}`
         }
       });
-      
+
       if (response.data) {
         if (response.data.success === false) {
           setErrors({ batch: response.data.message || 'Failed to load batches' });
           return;
         }
-        
+
         let batches = [];
         if (response.data.batches) {
           batches = response.data.batches;
@@ -206,7 +206,7 @@ const ManualMedicineAddForm = ({
         } else if (typeof response.data === 'string') {
           batches = [response.data];
         }
-        
+
         const processedBatches = batches.map(batch => {
           if (typeof batch === 'string') {
             return batch;
@@ -218,12 +218,12 @@ const ManualMedicineAddForm = ({
             return String(batch);
           }
         }).filter(batch => batch && batch.trim() !== '');
-        
+
         // Sort batches
         const sortedBatches = processedBatches.sort((a, b) => {
           return String(a).localeCompare(String(b));
         });
-        
+
         if (sortedBatches.length > 0) {
           setAvailableBatches(sortedBatches);
           setFilteredBatches(sortedBatches);
@@ -258,7 +258,7 @@ const ManualMedicineAddForm = ({
       ...prev,
       batchNumber: batch
     }));
-    
+
     // Move focus to submit button after selecting batch
     setTimeout(() => {
       submitButtonRef.current?.focus();
@@ -270,11 +270,11 @@ const ManualMedicineAddForm = ({
     // Handle Enter key
     if (e.key === 'Enter') {
       e.preventDefault();
-      
+
       // If a batch is already selected, submit the form
       if (selectedBatch) {
         handleSubmit();
-      } 
+      }
       // If no batch is selected but there's a highlighted one, select it
       else if (selectedBatchIndex >= 0 && filteredBatches[selectedBatchIndex]) {
         handleSelectBatch(filteredBatches[selectedBatchIndex]);
@@ -304,16 +304,16 @@ const ManualMedicineAddForm = ({
         const nextIndex = selectedBatchIndex < filteredBatches.length - 1 ? selectedBatchIndex + 1 : 0;
         setSelectedBatchIndex(nextIndex);
         break;
-        
+
       case 'ArrowUp':
         const prevIndex = selectedBatchIndex > 0 ? selectedBatchIndex - 1 : filteredBatches.length - 1;
         setSelectedBatchIndex(prevIndex);
         break;
-        
+
       case 'Escape':
         closeModal();
         break;
-        
+
       default:
         break;
     }
@@ -334,7 +334,7 @@ const ManualMedicineAddForm = ({
     setIsSubmitting(true);
     setErrors({});
     setSuccessMessage('');
-    
+
     try {
       const apiData = {
         name: formData.medicineName,
@@ -344,7 +344,7 @@ const ManualMedicineAddForm = ({
         pack: formData.pack,
       };
 
-      const response = await axios.post('http://192.168.1.110:6800/api/ocr/qc_verify', apiData,{
+      const response = await axios.post('http://192.168.1.110:6800/api/ocr/qc_verify', apiData, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('authToken')}`
@@ -354,12 +354,12 @@ const ManualMedicineAddForm = ({
       if (response.data?.success) {
         // Show success message
         setSuccessMessage(`${formData.medicineName} added successfully!`);
-        
+
         // Close modal after a short delay
         setTimeout(() => {
           closeModal();
         }, 800);
-        
+
       } else {
         closeModal();
       }
@@ -404,7 +404,7 @@ const ManualMedicineAddForm = ({
     <>
       {/* STEP 2: Select Batch Modal (Directly shown) */}
       {currentStep === 2 && (
-        <div 
+        <div
           ref={modalRef}
           className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4 backdrop-blur-sm transition-all duration-200"
         >
@@ -495,7 +495,7 @@ const ManualMedicineAddForm = ({
               </div>
 
               {/* Batch List */}
-              <div 
+              <div
                 ref={batchListRef}
                 className="flex-1 overflow-y-auto px-6 pb-6"
               >
@@ -535,17 +535,15 @@ const ManualMedicineAddForm = ({
                           key={`${batchNumber}_${index}`}
                           ref={el => batchItemRefs.current[index] = el}
                           onClick={() => handleSelectBatch(batchNumber)}
-                          className={`p-3 border rounded-lg cursor-pointer text-center transition-all ${
-                            selectedBatch === batchNumber
-                              ? 'border-green-500 bg-green-50 shadow-md ring-2 ring-green-200' 
+                          className={`p-3 border rounded-lg cursor-pointer text-center transition-all ${selectedBatch === batchNumber
+                              ? 'border-green-500 bg-green-50 shadow-md ring-2 ring-green-200'
                               : selectedBatchIndex === index
-                              ? 'border-green-300 bg-green-100'
-                              : 'border-gray-200 hover:bg-gray-50'
-                          }`}
+                                ? 'border-green-300 bg-green-100'
+                                : 'border-gray-200 hover:bg-gray-50'
+                            }`}
                         >
-                          <div className={`font-medium truncate ${
-                            selectedBatch === batchNumber ? 'text-green-700' : 'text-gray-800'
-                          }`}>
+                          <div className={`font-medium truncate ${selectedBatch === batchNumber ? 'text-green-700' : 'text-gray-800'
+                            }`}>
                             {batchNumber}
                           </div>
                           {selectedBatch === batchNumber && (
@@ -590,8 +588,8 @@ const ManualMedicineAddForm = ({
                     <span className="text-gray-600">Use ↑ ↓ to navigate</span>
                     <span className="text-gray-400">•</span>
                     <span className="text-gray-600 font-medium text-green-600">
-                      {selectedBatch 
-                        ? 'Press Enter to add medicine' 
+                      {selectedBatch
+                        ? 'Press Enter to add medicine'
                         : 'Press Enter to select batch'}
                     </span>
                   </div>
@@ -612,11 +610,10 @@ const ManualMedicineAddForm = ({
                       onClick={handleSubmit}
                       onKeyDown={handleSubmitButtonKeyDown}
                       disabled={isSubmitting || !selectedBatch}
-                      className={`px-5 py-2.5 rounded-lg font-medium ${
-                        selectedBatch
+                      className={`px-5 py-2.5 rounded-lg font-medium ${selectedBatch
                           ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2'
                           : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                      }`}
+                        }`}
                     >
                       {isSubmitting ? 'Adding...' : 'Add Medicine'}
                     </button>

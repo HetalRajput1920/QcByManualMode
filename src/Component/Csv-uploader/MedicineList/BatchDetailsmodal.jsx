@@ -252,9 +252,8 @@ function BatchDetailsModal({
 
   // Handle add batch button click
   const handleAddBatchClick = () => {
-    // Don't allow adding new batch if progress is complete
     if (isProgressComplete) {
-      alert('Cannot add new batch. Total expected quantity has been reached.');
+      onClose();
       return;
     }
 

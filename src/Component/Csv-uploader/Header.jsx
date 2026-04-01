@@ -69,14 +69,14 @@ function Header({
     if (!searchTerm.trim()) {
       return baskets;
     }
-    
+
     const searchLower = searchTerm.toLowerCase();
     return baskets.filter(basket => {
       const basketNumber = basket.basketNumber?.toLowerCase() || '';
       const customerName = basket.customerName?.toLowerCase() || '';
       const route = basket.route?.toLowerCase() || '';
       const invoiceNo = basket.invoiceNo?.toString() || '';
-      
+
       return (
         basketNumber.includes(searchLower) ||
         customerName.includes(searchLower) ||
@@ -143,15 +143,15 @@ function Header({
   useEffect(() => {
     const handleFocusIn = (event) => {
       const target = event.target;
-      const isInput = 
-        target.tagName === 'INPUT' || 
-        target.tagName === 'TEXTAREA' || 
+      const isInput =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
         target.tagName === 'SELECT' ||
         target.isContentEditable ||
         target.closest('[contenteditable="true"]');
-      
+
       isInputFocusedRef.current = isInput;
-      
+
       if (isInput) {
         keyboardNavigationEnabled.current = false;
         setTimeout(() => {
@@ -161,7 +161,7 @@ function Header({
     };
 
     document.addEventListener('focusin', handleFocusIn);
-    
+
     return () => {
       document.removeEventListener('focusin', handleFocusIn);
     };
@@ -185,7 +185,7 @@ function Header({
         qty: item.Qty || item.quantity || 0,
         itemc: item.Itemc?.toString() || item.code || '',
         vno: item.Vno || '',
-        psrlno : item.Psrlno || ''
+        psrlno: item.Psrlno || ''
       }));
 
       const response = await fetch('http://192.168.1.110:6800/api/ocr/qc_process_json', {
@@ -216,7 +216,7 @@ function Header({
     try {
       setLoading(true);
       setConnectionStatus('connecting');
-      
+
       const response = await fetch(`http://192.168.1.110:3500/api/warehouse/search-basket-for-checking-v2?name=${encodeURIComponent(searchQuery)}`, {
         method: 'GET',
         headers: {
@@ -224,7 +224,7 @@ function Header({
           'Authorization': `Bearer ${token}`
         }
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -247,7 +247,7 @@ function Header({
       if (basketsArray.length > 0) {
         const transformedBaskets = basketsArray.map(basketData => {
           const basketNumber = basketData.Basket || basketData.basketNumber || basketData.name || `BASKET-${Date.now()}`;
-          
+
           return {
             id: basketData.InvoiceNo || basketNumber,
             basketNumber: basketNumber,
@@ -269,7 +269,7 @@ function Header({
 
         setBaskets(transformedBaskets);
         setConnectionStatus('connected');
-        
+
         if (transformedBaskets.length > 0) {
           setFocusedBasketIndex(0);
         } else {
@@ -292,7 +292,7 @@ function Header({
   const handleBasketSelect = async (basket) => {
     try {
       setLoading(true);
-      
+
       const response = await axios.post(
         'http://192.168.1.110:3500/api/warehouse/get-invoice-items-checker2',
         { BasketNo: basket.basketNumber },
@@ -305,7 +305,7 @@ function Header({
       );
 
       const basketDetails = response.data;
-      
+
       const completeInvoice = {
         InvoiceNo: basketDetails.InvoiceNo || basket.basketNumber,
         Basket: basketDetails.Basket || basket.basketNumber,
@@ -323,44 +323,44 @@ function Header({
         target: basketDetails.Target || 0,
         QcDone: basketDetails.QcDone || 0
       };
-      
+
       if (completeInvoice.items && completeInvoice.items.length > 0) {
         const ocrResult = await sendToOCRQCProcess(completeInvoice.items);
         if (ocrResult) {
           completeInvoice.ocrResult = ocrResult;
         }
       }
-      
+
       if (onInvoiceSelect) {
         onInvoiceSelect(completeInvoice);
       }
-      
+
       if (setInvItems && completeInvoice.items) {
         setInvItems(completeInvoice.items);
       }
-      
+
       closeDropdown();
       await fetchCheckerSummary();
-      
+
     } catch (error) {
       console.error('❌ Failed to select basket:', error);
-      
+
       let userErrorMessage = 'Failed to select basket';
-      
+
       if (error.response && error.response.data && error.response.data.message) {
         userErrorMessage = error.response.data.message;
       } else if (error.message) {
         userErrorMessage = error.message;
       }
-      
+
       setErrorMessage(userErrorMessage);
       setShowError(true);
-      
+
       setTimeout(() => {
         setShowError(false);
         setErrorMessage('');
       }, 5000);
-      
+
     } finally {
       setLoading(false);
     }
@@ -383,7 +383,7 @@ function Header({
     const itemQuantity = checkerSummary.itemQuantity || 0;
     const target = checkerSummary.target || 0;
     const percentage = target > 0 ? Math.round((itemQuantity / target) * 100) : 0;
-    
+
     return {
       itemQuantity,
       target,
@@ -399,17 +399,17 @@ function Header({
   // Improved open dropdown function
   const openDropdown = () => {
     if (isDropdownOpen) return;
-    
+
     setIsDropdownOpen(true);
     setSearchTerm('');
     setFocusedBasketIndex(-1);
     shouldFocusBasketRef.current = false;
-    
+
     // Load baskets if needed
     if (baskets.length === 0) {
       searchBaskets('');
     }
-    
+
     // Focus search input after dropdown opens
     setTimeout(() => {
       if (searchInputRef.current) {
@@ -422,12 +422,12 @@ function Header({
   // Improved close dropdown function
   const closeDropdown = () => {
     if (!isDropdownOpen) return;
-    
+
     setIsDropdownOpen(false);
     setSearchTerm('');
     setFocusedBasketIndex(-1);
     shouldFocusBasketRef.current = false;
-    
+
     // Return focus to basket button
     setTimeout(() => {
       if (basketButtonRef.current) {
@@ -464,7 +464,7 @@ function Header({
   // Keyboard navigation
   const handleKeyboardNavigation = useCallback((event) => {
     if (!keyboardNavigationEnabled.current) return;
-    
+
     if (isInputFocusedRef.current) {
       if (event.key === 'Escape' && isDropdownOpen) {
         event.preventDefault();
@@ -474,7 +474,7 @@ function Header({
     }
 
     const { key, ctrlKey, altKey, metaKey } = event;
-    
+
     if (ctrlKey || altKey || metaKey) return;
 
     switch (key.toLowerCase()) {
@@ -535,15 +535,15 @@ function Header({
       const focusedElement = document.querySelector(`[data-basket-index="${focusedBasketIndex}"]`);
       if (!focusedElement) return;
 
-      const scrollContainer = dropdownRef.current?.querySelector('.max-h-96.overflow-y-auto') || 
-                            dropdownRef.current?.querySelector('[class*="overflow-y-auto"]');
-      
+      const scrollContainer = dropdownRef.current?.querySelector('.max-h-96.overflow-y-auto') ||
+        dropdownRef.current?.querySelector('[class*="overflow-y-auto"]');
+
       if (scrollContainer) {
         const containerRect = scrollContainer.getBoundingClientRect();
         const elementRect = focusedElement.getBoundingClientRect();
         const relativeTop = elementRect.top - containerRect.top;
         const relativeBottom = elementRect.bottom - containerRect.top;
-        
+
         if (relativeTop < 0 || relativeBottom > containerRect.height) {
           focusedElement.scrollIntoView({
             behavior: 'smooth',
@@ -573,7 +573,7 @@ function Header({
           searchInputRef.current.select();
         }
       }, 50);
-      
+
       return () => clearTimeout(timer);
     }
   }, [isDropdownOpen]);
@@ -599,7 +599,7 @@ function Header({
         event.preventDefault();
         closeDropdown();
         break;
-        
+
       case 'ArrowDown':
         if (filteredBaskets.length > 0) {
           event.preventDefault();
@@ -611,7 +611,7 @@ function Header({
           });
         }
         break;
-        
+
       case 'ArrowUp':
         if (filteredBaskets.length > 0) {
           event.preventDefault();
@@ -623,7 +623,7 @@ function Header({
           });
         }
         break;
-        
+
       case 'Enter':
         if (filteredBaskets.length > 0) {
           event.preventDefault();
@@ -634,7 +634,7 @@ function Header({
           }
         }
         break;
-        
+
       case 'Tab':
         // Allow Tab to work normally, but close dropdown if we're on the last item
         if (!event.shiftKey && focusedBasketIndex >= filteredBaskets.length - 1) {
@@ -655,12 +655,12 @@ function Header({
     setSearchTerm(value);
     shouldFocusBasketRef.current = false;
     setFocusedBasketIndex(-1);
-    
+
     // Clear previous timeout
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
-    
+
     // Set new timeout for search
     if (isDropdownOpen) {
       searchTimeoutRef.current = setTimeout(() => {
@@ -681,7 +681,7 @@ function Header({
   // Basket Item Component
   const BasketItem = React.memo(({ basket, index, isFocused, onClick }) => {
     const itemRef = useRef(null);
-    
+
     useEffect(() => {
       if (isFocused && itemRef.current && shouldFocusBasketRef.current) {
         itemRef.current.focus();
@@ -747,11 +747,10 @@ function Header({
         tabIndex={-1}
         role="option"
         aria-selected={isFocused}
-        className={`p-3 border rounded-lg cursor-pointer transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
-          isFocused 
-            ? 'bg-blue-100 border-blue-300 shadow-sm' 
+        className={`p-3 border rounded-lg cursor-pointer transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${isFocused
+            ? 'bg-blue-100 border-blue-300 shadow-sm'
             : 'bg-white border-gray-200 hover:bg-blue-50 hover:border-blue-200'
-        }`}
+          }`}
         onClick={onClick}
         onKeyDown={handleKeyDown}
         onMouseEnter={handleMouseEnter}
@@ -761,7 +760,7 @@ function Header({
           <div className="flex-1 min-w-0">
             <div className="flex items-center space-x-2 mb-1">
               <span className="font-semibold text-gray-900 truncate">
-                {basket.basketNumber} 
+                {basket.basketNumber}
               </span>
               {basket.invoiceNo && (
                 <span className="text-sm font-normal text-gray-600 truncate">
@@ -775,13 +774,12 @@ function Header({
             <div className="text-xs text-gray-500 mt-1 flex items-center space-x-2">
               <span>{basket.route}</span>
               <span>•</span>
-              <span className={`px-2 py-0.5 rounded-full text-xs ${
-                basket.status === 'Completed' 
-                  ? 'bg-green-100 text-green-800' 
+              <span className={`px-2 py-0.5 rounded-full text-xs ${basket.status === 'Completed'
+                  ? 'bg-green-100 text-green-800'
                   : basket.status === 'OnChecking'
-                  ? 'bg-yellow-100 text-yellow-800'
-                  : 'bg-gray-100 text-gray-800'
-              }`}>
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : 'bg-gray-100 text-gray-800'
+                }`}>
                 {basket.status}
               </span>
             </div>
@@ -846,13 +844,13 @@ function Header({
                 <FaTrashAlt className="h-6 w-6 text-red-600" />
               </div>
             </div>
-            
+
             <h3 className="text-lg font-semibold text-center mb-2">Clear All Data</h3>
-            
+
             <p className="text-sm text-gray-600 text-center mb-6">
               Are you sure you want to clear all saved data? This action cannot be undone and will remove:
             </p>
-            
+
             <div className="bg-gray-50 rounded-lg p-4 mb-6">
               <ul className="text-sm text-gray-600 space-y-2">
                 <li className="flex items-center">
@@ -912,9 +910,8 @@ function Header({
 
             {/* Connection Status */}
             <div className="hidden md:flex items-center space-x-2">
-              <div className={`w-2 h-2 rounded-full ${
-                socketConnection ? 'bg-green-500' : 'bg-red-500'
-              }`}></div>
+              <div className={`w-2 h-2 rounded-full ${socketConnection ? 'bg-green-500' : 'bg-red-500'
+                }`}></div>
               <span className="text-xs text-gray-500">
                 {socketConnection ? 'Connected' : 'Disconnected'}
               </span>
@@ -1023,7 +1020,7 @@ function Header({
                         {filteredBaskets.length > 0 && (
                           <div className="mb-4">
                             <h4 className="font-semibold text-gray-700 mb-2">
-                              {searchTerm.trim() 
+                              {searchTerm.trim()
                                 ? `Search Results (${filteredBaskets.length})`
                                 : `All Baskets (${filteredBaskets.length})`}
                             </h4>
@@ -1102,7 +1099,7 @@ function Header({
                   </div>
                   <div className="text-xs text-gray-500">Route</div>
                 </div>
-                
+
                 {selectedInvoice.CustName && (
                   <>
                     <div className="h-10 w-px bg-blue-200"></div>
@@ -1267,7 +1264,7 @@ function Header({
                       {filteredBaskets.length > 0 && (
                         <div className="space-y-2">
                           <h4 className="font-semibold text-gray-700 mb-2 px-2">
-                            {searchTerm.trim() 
+                            {searchTerm.trim()
                               ? `Search Results (${filteredBaskets.length})`
                               : `All Baskets (${filteredBaskets.length})`}
                           </h4>
@@ -1275,11 +1272,10 @@ function Header({
                             <div
                               key={basket.id}
                               data-basket-index={index}
-                              className={`p-3 border rounded-lg cursor-pointer transition-colors duration-150 ${
-                                focusedBasketIndex === index 
-                                  ? 'bg-blue-100 border-blue-300 shadow-sm' 
+                              className={`p-3 border rounded-lg cursor-pointer transition-colors duration-150 ${focusedBasketIndex === index
+                                  ? 'bg-blue-100 border-blue-300 shadow-sm'
                                   : 'bg-white border-gray-200 hover:bg-blue-50'
-                              }`}
+                                }`}
                               onClick={() => handleBasketSelect(basket)}
                               onMouseEnter={() => {
                                 setFocusedBasketIndex(index);
@@ -1374,9 +1370,9 @@ function Header({
                   </div>
                   <div className="text-xs text-gray-500">Basket</div>
                 </div>
-                
+
                 <div className="hidden sm:block h-8 w-px bg-blue-200 mx-2"></div>
-                
+
                 <div className="flex items-center space-x-3">
                   <div className="text-center">
                     <div className="text-sm font-bold text-blue-600">
@@ -1429,7 +1425,7 @@ function Header({
                 <FaTimesCircle className="h-5 w-5 text-gray-500" />
               </button>
             </div>
-            
+
             <div className="p-4 space-y-3">
               <button
                 onClick={() => {
@@ -1441,7 +1437,7 @@ function Header({
                 <FaSave className="text-blue-600" />
                 <span>Save Data</span>
               </button>
-              
+
               <button
                 onClick={() => {
                   handleClearData();
@@ -1452,7 +1448,7 @@ function Header({
                 <FaTrashAlt className="text-red-600" />
                 <span>Clear Data</span>
               </button>
-              
+
               <button
                 onClick={() => {
                   setShowLogoutConfirm(true);
