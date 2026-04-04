@@ -142,10 +142,10 @@ function CsvViewer() {
 
   // Function to manually clear localStorage
   const clearLocalStorageManual = () => {
-    
-      clearLocalStorage();
-      resetWorkflow();
-    
+
+    clearLocalStorage();
+    resetWorkflow();
+
   };
 
   // Add beforeunload event to save data before page refresh/close
@@ -176,49 +176,49 @@ function CsvViewer() {
   // ================== HELPER FUNCTIONS ==================
 
   // Calculate unscanned medicines from invoice items
-const calculateUnscannedMedicines = useCallback(() => {
-  if (!invItems || invItems.length === 0) {
-    return [];
-  }
-
-  // Remove all unscanned filtering logic
-  
-  const uniqueMedicines = [];
-  const seenCodes = new Set();
-  
-  invItems.forEach(item => {
-    const itemCode = item.Itemc || item.itemc || item.code;
-    const normalizedCode = itemCode?.toString().trim();
-    
-    // Only check for valid medicine codes
-    const isValidMedicine = normalizedCode && normalizedCode !== 'undefined';
-    
-    if (isValidMedicine && !seenCodes.has(normalizedCode)) {
-      seenCodes.add(normalizedCode);
-      uniqueMedicines.push(item);
+  const calculateUnscannedMedicines = useCallback(() => {
+    if (!invItems || invItems.length === 0) {
+      return [];
     }
-  });
 
-  const formattedMedicines = uniqueMedicines.map(item => ({
-    item_code: item.Itemc || item.itemc || item.code,
-    code: item.Itemc || item.itemc || item.code,
-    name: item.ItName || 'Unknown Medicine',
-    ItName: item.ItName || 'Unknown Medicine',
-    Mrp: item.MRP || item.mrp || 0,
-    mrp: item.MRP || item.mrp || 0,
-    Pack: item.Pack || item.pack || '',
-    pack: item.Pack || item.pack || '',
-    Expiry: item.Expiry || item.expiry || '',
-    expiry: item.Expiry || item.expiry || '',
-    Qty: item.Qty || 0,
-    NewQty: item.NewQty || item.Qty || 0,
-    ItLocation: item.ItLocation || 'MANUAL',
-    Batch: item.Batch || item.batch || '',
-    Psrlno: item.Psrlno || item.psrlno || ''
-  }));
+    // Remove all unscanned filtering logic
 
-  return formattedMedicines;
-}, [invItems]); 
+    const uniqueMedicines = [];
+    const seenCodes = new Set();
+
+    invItems.forEach(item => {
+      const itemCode = item.Itemc || item.itemc || item.code;
+      const normalizedCode = itemCode?.toString().trim();
+
+      // Only check for valid medicine codes
+      const isValidMedicine = normalizedCode && normalizedCode !== 'undefined';
+
+      if (isValidMedicine && !seenCodes.has(normalizedCode)) {
+        seenCodes.add(normalizedCode);
+        uniqueMedicines.push(item);
+      }
+    });
+
+    const formattedMedicines = uniqueMedicines.map(item => ({
+      item_code: item.Itemc || item.itemc || item.code,
+      code: item.Itemc || item.itemc || item.code,
+      name: item.ItName || 'Unknown Medicine',
+      ItName: item.ItName || 'Unknown Medicine',
+      Mrp: item.MRP || item.mrp || 0,
+      mrp: item.MRP || item.mrp || 0,
+      Pack: item.Pack || item.pack || '',
+      pack: item.Pack || item.pack || '',
+      Expiry: item.Expiry || item.expiry || '',
+      expiry: item.Expiry || item.expiry || '',
+      Qty: item.Qty || 0,
+      NewQty: item.NewQty || item.Qty || 0,
+      ItLocation: item.ItLocation || 'MANUAL',
+      Batch: item.Batch || item.batch || '',
+      Psrlno: item.Psrlno || item.psrlno || ''
+    }));
+
+    return formattedMedicines;
+  }, [invItems]);
 
   // Helper function to get the next ItemSequence
   const getNextItemSequenceForNewBatch = useCallback(() => {
@@ -600,7 +600,7 @@ const calculateUnscannedMedicines = useCallback(() => {
   const getBatchDistributionForItemCode = useCallback((itemCode) => {
     const invoiceItems = findInvoiceItemsByCode(itemCode);
     const batchDistribution = {};
-    
+
     invoiceItems.forEach(item => {
       const batch = item.Batch || item.batch || item.NewBatch || 'No Batch';
       const qty = item.NewQty || item.Qty || 0;
@@ -895,187 +895,187 @@ const calculateUnscannedMedicines = useCallback(() => {
     };
 
 
-// STEP: Create merged medicine data with the helper function inside
-const createMergedMedicineData = ({
-  matchedProduct,
-  invoiceItem,
-  backendData,
-  status,
-  mismatches,
-  isMismatchBatch,
-  isMismatchPack,
-  isMismatchExpiry,
-  isMismatchMrp,
-  medicineName,
-  itemCode,
-  batch,
-  mrp,
-  pack,
-  expiry,
-  quantity,
-  isNewBatch = false,
-  newItemSequence = null
-}) => {
-  const currentInvoice = selectedInvoiceRef.current;
+    // STEP: Create merged medicine data with the helper function inside
+    const createMergedMedicineData = ({
+      matchedProduct,
+      invoiceItem,
+      backendData,
+      status,
+      mismatches,
+      isMismatchBatch,
+      isMismatchPack,
+      isMismatchExpiry,
+      isMismatchMrp,
+      medicineName,
+      itemCode,
+      batch,
+      mrp,
+      pack,
+      expiry,
+      quantity,
+      isNewBatch = false,
+      newItemSequence = null
+    }) => {
+      const currentInvoice = selectedInvoiceRef.current;
 
-  // Determine ItemSequence
-  let itemSequence;
-  if (isNewBatch && newItemSequence) {
-    itemSequence = newItemSequence;
-  } else if (invoiceItem && backendData.success) {
-    itemSequence = invoiceItem.ItemSequence || 0;
-  } else {
-    itemSequence = newItemSequence || getNextItemSequenceForNewBatch();
-  }
+      // Determine ItemSequence
+      let itemSequence;
+      if (isNewBatch && newItemSequence) {
+        itemSequence = newItemSequence;
+      } else if (invoiceItem && backendData.success) {
+        itemSequence = invoiceItem.ItemSequence || 0;
+      } else {
+        itemSequence = newItemSequence || getNextItemSequenceForNewBatch();
+      }
 
-  // FIXED: Find location and other invoice fields by code if invoiceItem not found or mismatched
-  let itLocation = invoiceItem?.ItLocation;
-  let trayId = invoiceItem?.TrayID || 0;
-  let pickerId = invoiceItem?.PickerID || 0;
-  let checkerId = invoiceItem?.CheckerID || 0;
-  let expectedQtyFromInvoice = invoiceItem?.NewQty || invoiceItem?.Qty || 1;
-  let invoiceBatch = invoiceItem?.Batch || batch;
-  let invoicePack = invoiceItem?.Pack || pack;
-  let invoiceExpiry = invoiceItem?.Expiry || expiry;
-  let invoiceMrp = invoiceItem?.MRP || mrp;
-  let invoiceItemCode = invoiceItem?.Itemc || itemCode;
-  let invoiceItName = invoiceItem?.ItName || medicineName;
-  
-  // If not found from exact match, try to find by code only
-  if (!invoiceItem && itemCode) {
-    const locationItem = findInvoiceItemByCode(itemCode);
-    if (locationItem) {
-      itLocation = locationItem?.ItLocation || itLocation;
-      trayId = locationItem?.TrayID || trayId;
-      pickerId = locationItem?.PickerID || pickerId;
-      checkerId = locationItem?.CheckerID || checkerId;
-      expectedQtyFromInvoice = locationItem?.NewQty || locationItem?.Qty || expectedQtyFromInvoice;
-      invoiceBatch = locationItem?.Batch || invoiceBatch;
-      invoicePack = locationItem?.Pack || invoicePack;
-      invoiceExpiry = locationItem?.Expiry || invoiceExpiry;
-      invoiceMrp = locationItem?.MRP || invoiceMrp;
-      invoiceItemCode = locationItem?.Itemc || invoiceItemCode;
-      invoiceItName = locationItem?.ItName || invoiceItName;
-    }
-  }
+      // FIXED: Find location and other invoice fields by code if invoiceItem not found or mismatched
+      let itLocation = invoiceItem?.ItLocation;
+      let trayId = invoiceItem?.TrayID || 0;
+      let pickerId = invoiceItem?.PickerID || 0;
+      let checkerId = invoiceItem?.CheckerID || 0;
+      let expectedQtyFromInvoice = invoiceItem?.NewQty || invoiceItem?.Qty || 1;
+      let invoiceBatch = invoiceItem?.Batch || batch;
+      let invoicePack = invoiceItem?.Pack || pack;
+      let invoiceExpiry = invoiceItem?.Expiry || expiry;
+      let invoiceMrp = invoiceItem?.MRP || mrp;
+      let invoiceItemCode = invoiceItem?.Itemc || itemCode;
+      let invoiceItName = invoiceItem?.ItName || medicineName;
 
-  // Fallback to 'MANUAL' only if truly not found
-  itLocation = itLocation || 'MANUAL';
+      // If not found from exact match, try to find by code only
+      if (!invoiceItem && itemCode) {
+        const locationItem = findInvoiceItemByCode(itemCode);
+        if (locationItem) {
+          itLocation = locationItem?.ItLocation || itLocation;
+          trayId = locationItem?.TrayID || trayId;
+          pickerId = locationItem?.PickerID || pickerId;
+          checkerId = locationItem?.CheckerID || checkerId;
+          expectedQtyFromInvoice = locationItem?.NewQty || locationItem?.Qty || expectedQtyFromInvoice;
+          invoiceBatch = locationItem?.Batch || invoiceBatch;
+          invoicePack = locationItem?.Pack || invoicePack;
+          invoiceExpiry = locationItem?.Expiry || invoiceExpiry;
+          invoiceMrp = locationItem?.MRP || invoiceMrp;
+          invoiceItemCode = locationItem?.Itemc || invoiceItemCode;
+          invoiceItName = locationItem?.ItName || invoiceItName;
+        }
+      }
 
-  // Base data from scan
-  const baseData = {
-    ...matchedProduct,
-    id: `${itemCode}_${batch}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    name: medicineName,
-    ItLocation: itLocation, // Use the found location
-    code: itemCode,
-    batch: batch,
-    mrp: mrp,
-    pack: pack,
-    expiry: expiry,
-    quantity: quantity,
-    scannedQty: 1,
-    status: status,
-    timestamp: new Date().toLocaleTimeString(),
-    scannedAt: new Date().toISOString(),
-    verifiedBy: 'Mobile Scanner',
-    isMismatchBatch: isMismatchBatch,
-    isMismatchPack: isMismatchPack,
-    isMismatchExpiry: isMismatchExpiry,
-    isMismatchMrp: isMismatchMrp,
-    actualBatch: mismatches.batch || batch,
-    actualPack: mismatches.pack || pack,
-    actualExpiry: mismatches.expiry || expiry,
-    actualMrp: mismatches.mrp || mrp,
-    expectedBatch: invoiceBatch, // Use invoice batch
-    expectedPack: invoicePack, // Use invoice pack
-    expectedExpiry: invoiceExpiry, // Use invoice expiry
-    expectedMrp: invoiceMrp, // Use invoice MRP
-    success: backendData.success && !isMismatchBatch && !isMismatchPack && !isMismatchExpiry && !isMismatchMrp,
-    similarity: backendData.similarity || 0,
-    mismatches: mismatches,
-    originalData: backendData,
-    isManualAdjustment: false,
-    isManualEntry: false,
-    isAutoAdded: false,
-    invoiceItemFound: !!invoiceItem,
-    isNewBatchItem: isNewBatch,
-    ItemSequence: itemSequence,
-    clqty:invoiceItem?.clqty || 0
-  };
+      // Fallback to 'MANUAL' only if truly not found
+      itLocation = itLocation || 'MANUAL';
 
-  // Merge with invoice item data if found OR if we have location data
-  if (invoiceItem && backendData.success) {
-    const expectedQty = invoiceItem.NewQty || invoiceItem.Qty || 1;
+      // Base data from scan
+      const baseData = {
+        ...matchedProduct,
+        id: `${itemCode}_${batch}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        name: medicineName,
+        ItLocation: itLocation, // Use the found location
+        code: itemCode,
+        batch: batch,
+        mrp: mrp,
+        pack: pack,
+        expiry: expiry,
+        quantity: quantity,
+        scannedQty: 1,
+        status: status,
+        timestamp: new Date().toLocaleTimeString(),
+        scannedAt: new Date().toISOString(),
+        verifiedBy: 'Mobile Scanner',
+        isMismatchBatch: isMismatchBatch,
+        isMismatchPack: isMismatchPack,
+        isMismatchExpiry: isMismatchExpiry,
+        isMismatchMrp: isMismatchMrp,
+        actualBatch: mismatches.batch || batch,
+        actualPack: mismatches.pack || pack,
+        actualExpiry: mismatches.expiry || expiry,
+        actualMrp: mismatches.mrp || mrp,
+        expectedBatch: invoiceBatch, // Use invoice batch
+        expectedPack: invoicePack, // Use invoice pack
+        expectedExpiry: invoiceExpiry, // Use invoice expiry
+        expectedMrp: invoiceMrp, // Use invoice MRP
+        success: backendData.success && !isMismatchBatch && !isMismatchPack && !isMismatchExpiry && !isMismatchMrp,
+        similarity: backendData.similarity || 0,
+        mismatches: mismatches,
+        originalData: backendData,
+        isManualAdjustment: false,
+        isManualEntry: false,
+        isAutoAdded: false,
+        invoiceItemFound: !!invoiceItem,
+        isNewBatchItem: isNewBatch,
+        ItemSequence: itemSequence,
+        clqty: invoiceItem?.clqty || 0
+      };
 
-    return {
-      ...baseData,
-      Vtype: invoiceItem.Vtype || 'SB',
-      Vdt: invoiceItem.Vdt || currentInvoice?.Vdt || new Date().toISOString().split('T')[0],
-      Vno: invoiceItem.Vno || currentInvoice?.InvoiceNo || 0,
-      Acno: invoiceItem.Acno || currentInvoice?.Acno || 0,
-      ItName: invoiceItem.ItName || medicineName,
-      Pack: invoiceItem.Pack || pack,
-      Itemc: invoiceItem.Itemc || itemCode,
-      Batch: invoiceItem.Batch || batch,
-      Expiry: invoiceItem.Expiry || expiry,
-      MRP: invoiceItem.MRP || mrp,
-      Qty: invoiceItem.Qty || quantity,
-      NewQty: expectedQty,
-      expectedQty: expectedQty,
-      ItLocation: itLocation, // Use the found location
-      TrayID: trayId, // Use the found TrayID
-      PickerID: pickerId, // Use the found PickerID
-      CheckerID: checkerId, // Use the found CheckerID
-      NewBatch: invoiceItem.NewBatch || batch,
-      IsDelete: invoiceItem.IsDelete || -1,
-      Reason: invoiceItem.Reason || '',
-      Status: invoiceItem.Status || 'C',
-      PickQty: invoiceItem.PickQty || 0,
-      PickTime: invoiceItem.PickTime || new Date().toISOString().replace('T', ' ').substring(0, 19),
-      CheckTime: invoiceItem.CheckTime || new Date().toISOString().replace('T', ' ').substring(0, 19),
-      PorderNo: invoiceItem.PorderNo || 0,
-      psrlno: backendData.psrlno || invoiceItem.Psrlno || '',
-      expectedBatch: invoiceItem.Batch || batch,
-      expectedPack: invoiceItem.Pack || pack,
-      expectedExpiry: invoiceItem.Expiry || expiry,
-      expectedMrp: invoiceItem.MRP || mrp
+      // Merge with invoice item data if found OR if we have location data
+      if (invoiceItem && backendData.success) {
+        const expectedQty = invoiceItem.NewQty || invoiceItem.Qty || 1;
+
+        return {
+          ...baseData,
+          Vtype: invoiceItem.Vtype || 'SB',
+          Vdt: invoiceItem.Vdt || currentInvoice?.Vdt || new Date().toISOString().split('T')[0],
+          Vno: invoiceItem.Vno || currentInvoice?.InvoiceNo || 0,
+          Acno: invoiceItem.Acno || currentInvoice?.Acno || 0,
+          ItName: invoiceItem.ItName || medicineName,
+          Pack: invoiceItem.Pack || pack,
+          Itemc: invoiceItem.Itemc || itemCode,
+          Batch: invoiceItem.Batch || batch,
+          Expiry: invoiceItem.Expiry || expiry,
+          MRP: invoiceItem.MRP || mrp,
+          Qty: invoiceItem.Qty || quantity,
+          NewQty: expectedQty,
+          expectedQty: expectedQty,
+          ItLocation: itLocation, // Use the found location
+          TrayID: trayId, // Use the found TrayID
+          PickerID: pickerId, // Use the found PickerID
+          CheckerID: checkerId, // Use the found CheckerID
+          NewBatch: invoiceItem.NewBatch || batch,
+          IsDelete: invoiceItem.IsDelete || -1,
+          Reason: invoiceItem.Reason || '',
+          Status: invoiceItem.Status || 'C',
+          PickQty: invoiceItem.PickQty || 0,
+          PickTime: invoiceItem.PickTime || new Date().toISOString().replace('T', ' ').substring(0, 19),
+          CheckTime: invoiceItem.CheckTime || new Date().toISOString().replace('T', ' ').substring(0, 19),
+          PorderNo: invoiceItem.PorderNo || 0,
+          psrlno: backendData.psrlno || invoiceItem.Psrlno || '',
+          expectedBatch: invoiceItem.Batch || batch,
+          expectedPack: invoiceItem.Pack || pack,
+          expectedExpiry: invoiceItem.Expiry || expiry,
+          expectedMrp: invoiceItem.MRP || mrp
+        };
+      } else {
+        // For mismatched items or when no invoice item found, but we have location data
+        const expectedQty = expectedQtyFromInvoice;
+
+        return {
+          ...baseData,
+          Vtype: 'SB',
+          Vdt: currentInvoice?.Vdt || new Date().toISOString().split('T')[0],
+          Vno: currentInvoice?.InvoiceNo || 0,
+          Acno: currentInvoice?.Acno || 0,
+          ItName: invoiceItName, // Use invoice item name
+          ItLocation: itLocation, // Use the found location
+          Itemc: invoiceItemCode, // Use invoice item code
+          Batch: batch,
+          Expiry: expiry,
+          MRP: mrp,
+          Qty: quantity,
+          NewQty: expectedQty,
+          expectedQty: expectedQty,
+          TrayID: trayId, // Use the found TrayID
+          PickerID: pickerId, // Use the found PickerID
+          CheckerID: checkerId, // Use the found CheckerID
+          NewBatch: batch,
+          IsDelete: -1,
+          Reason: '',
+          Status: 'C',
+          PickQty: 0,
+          PickTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
+          CheckTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
+          PorderNo: 0,
+          psrlno: backendData.psrlno || '',
+          invoiceItemFound: !!invoiceItem
+        };
+      }
     };
-  } else {
-    // For mismatched items or when no invoice item found, but we have location data
-    const expectedQty = expectedQtyFromInvoice;
-
-    return {
-      ...baseData,
-      Vtype: 'SB',
-      Vdt: currentInvoice?.Vdt || new Date().toISOString().split('T')[0],
-      Vno: currentInvoice?.InvoiceNo || 0,
-      Acno: currentInvoice?.Acno || 0,
-      ItName: invoiceItName, // Use invoice item name
-      ItLocation: itLocation, // Use the found location
-      Itemc: invoiceItemCode, // Use invoice item code
-      Batch: batch,
-      Expiry: expiry,
-      MRP: mrp,
-      Qty: quantity,
-      NewQty: expectedQty,
-      expectedQty: expectedQty,
-      TrayID: trayId, // Use the found TrayID
-      PickerID: pickerId, // Use the found PickerID
-      CheckerID: checkerId, // Use the found CheckerID
-      NewBatch: batch,
-      IsDelete: -1,
-      Reason: '',
-      Status: 'C',
-      PickQty: 0,
-      PickTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      CheckTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      PorderNo: 0,
-      psrlno: backendData.psrlno || '',
-      invoiceItemFound: !!invoiceItem
-    };
-  }
-};
 
     const mergedMedicineData = createMergedMedicineData({
       matchedProduct,

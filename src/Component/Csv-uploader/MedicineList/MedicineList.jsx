@@ -209,29 +209,13 @@ function MedicineList({
       });
     }
 
-    // Convert to array and sort
+    // Convert to array - NO SORTING, preserve original order
     const batches = Array.from(batchMap.values());
-    console.log('Final batches:', batches);
-
-    // Sort: scanned batches first, then by expected quantity - NO TIMESTAMP SORTING
-    batches.sort((a, b) => {
-      // First priority: scanned batches come first
-      if (a.scannedQty > 0 && b.scannedQty === 0) return -1;
-      if (a.scannedQty === 0 && b.scannedQty > 0) return 1;
-
-      // Second priority: mismatch batches
-      if (a.isMismatchBatch && !b.isMismatchBatch) return -1;
-      if (!a.isMismatchBatch && b.isMismatchBatch) return 1;
-
-      // Third priority: higher expected quantity
-      return (b.expectedQty || 0) - (a.expectedQty || 0);
-    });
+    console.log('Final batches (no sorting):', batches);
 
     return batches;
   };
 
-  // Handle quantity update from batch details modal
-  // Handle quantity update from batch details modal
   // Handle quantity update from batch details modal
   const handleBatchQuantityUpdate = (itemCode, batch, psrlno, operation) => {
     console.log(`🔄 Batch quantity ${operation} for item: ${itemCode}, batch: ${batch}, psrlno: ${psrlno}`);
@@ -251,7 +235,6 @@ function MedicineList({
       console.warn(`⚠️ Batch not found for validation`);
       return;
     }
-
 
     let totalExpectedForItem = 0;
 
@@ -641,7 +624,7 @@ function MedicineList({
   // Check conditions for showing the button
   const shouldShowCompleteButton = selectedInvoice && medicinesArray.length > 0;
 
-  // ============== FIXED GROUPING FUNCTION - NO TIMESTAMP TRACKING ==============
+  // ============== FIXED GROUPING FUNCTION - NO SORTING ==============
   const getItemCodeGroupedList = () => {
     const itemCodeMap = new Map();
     const rawMedicines = scannedMedicines || [];
@@ -671,7 +654,7 @@ function MedicineList({
       });
     }
 
-    // Process each scanned medicine
+    // Process each scanned medicine - maintain original order
     rawMedicines.forEach(medicine => {
       const itemCode = String(medicine.code || medicine.Itemc || '');
       if (!itemCode) return;
@@ -814,7 +797,7 @@ function MedicineList({
       }
     });
 
-    // Calculate totals and prepare final array
+    // Calculate totals and prepare final array - NO SORTING, preserve insertion order
     const result = Array.from(itemCodeMap.values()).map(item => {
       // Calculate totals
       item.scannedQty = item.batches.reduce((sum, b) => sum + (b.scannedQty || 0), 0);
@@ -829,24 +812,8 @@ function MedicineList({
         item.pickerName = firstBatchWithPicker.pickerName;
       }
 
-      // Sort batches - simplified, no timestamp
-      item.batches.sort((a, b) => {
-        // First priority: scanned batches come first
-        if (a.scannedQty > 0 && b.scannedQty === 0) return -1;
-        if (a.scannedQty === 0 && b.scannedQty > 0) return 1;
-
-        // Second priority: mismatch batches
-        if (a.isMismatchBatch && !b.isMismatchBatch) return -1;
-        if (!a.isMismatchBatch && b.isMismatchBatch) return 1;
-
-        // Third priority: sort by psrlno
-        if (a.psrlno !== b.psrlno) {
-          return String(a.psrlno).localeCompare(String(b.psrlno));
-        }
-
-        // Finally, sort by batch name
-        return String(a.batch).localeCompare(String(b.batch));
-      });
+      // NO SORTING - keep batches in original order
+      // Simply return item with batches as they were added
 
       return item;
     });
@@ -915,11 +882,11 @@ function MedicineList({
     return canComplete;
   };
 
-  // Get the main display list (grouped by item code)
+  // Get the main display list (grouped by item code) - NO SORTING APPLIED
   const itemCodeList = getItemCodeGroupedList();
 
-  // Filter and sort the main list - NO TIMESTAMP SORTING
-  const getFilteredAndSortedList = () => {
+  // Filter and sort the main list - FILTERING ONLY, NO SORTING
+  const getFilteredList = () => {
     let filtered = itemCodeList;
 
     if (searchTerm.trim()) {
@@ -941,30 +908,13 @@ function MedicineList({
       filtered = filtered.filter(item => item.scannedQty === 0);
     }
 
-    // SORT BY USER SELECTED CRITERIA ONLY - NO TIMESTAMP SORTING
-    filtered.sort((a, b) => {
-      const safeString = (value) => value === null || value === undefined ? '' : String(value);
-
-      switch (sortBy) {
-        case 'code':
-          return safeString(a.code).localeCompare(safeString(b.code));
-        case 'name':
-          return safeString(a.name).localeCompare(safeString(b.name));
-        case 'pickerName': // Add sorting by pickerName
-          return safeString(a.pickerName).localeCompare(safeString(b.pickerName));
-        case 'scannedQty':
-          return (b.scannedQty || 0) - (a.scannedQty || 0);
-        case 'expectedQty':
-          return (b.expectedQty || 0) - (a.expectedQty || 0);
-        default:
-          return safeString(a.code).localeCompare(safeString(b.code));
-      }
-    });
+    // NO SORTING - preserve original order from getItemCodeGroupedList()
+    // Filtered list maintains the order from the original data
 
     return filtered;
   };
 
-  const displayList = getFilteredAndSortedList();
+  const displayList = getFilteredList();
 
   // Auto-scroll to selected medicine
   useEffect(() => {
@@ -1330,11 +1280,10 @@ function MedicineList({
             handleOpenBatchDetails(selectedItem.code, selectedItem.name);
           }
           break;
-        case 'F12': // Changed to End key
-          if (event.ctrlKey) { // Keep Ctrl+End combination
-            event.preventDefault();
-            if (shouldShowCompleteButton && canCompleteVerification()) setShowCompleteConfirm(true);
-          }
+        case 'End':
+          event.preventDefault();
+          if (shouldShowCompleteButton && canCompleteVerification()) setShowCompleteConfirm(true);
+
           break;
         default: break;
       }
