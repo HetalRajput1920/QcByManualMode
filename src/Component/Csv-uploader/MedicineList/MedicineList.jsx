@@ -103,262 +103,262 @@ function MedicineList({
     setShowHistoryModal(true);
   };
 
-const getLiveBatchesForSelectedItem = () => {
-  if (!selectedItemCode) return [];
+  const getLiveBatchesForSelectedItem = () => {
+    if (!selectedItemCode) return [];
 
-  console.log('Getting batches for item:', selectedItemCode);
-  console.log('Raw scannedMedicines:', scannedMedicines);
-  console.log('InvItems:', invItems);
+    console.log('Getting batches for item:', selectedItemCode);
+    console.log('Raw scannedMedicines:', scannedMedicines);
+    console.log('InvItems:', invItems);
 
-  const batchMap = new Map();
-  
-  // Calculate total expected quantity for this item from invoice
-  let totalExpectedForItem = 0;
-  if (invItems) {
-    const invoiceItemsForCode = invItems.filter(inv => {
-      const invCode = String(inv.Itemc || inv.code || '');
-      return invCode === String(selectedItemCode);
-    });
-    
-    totalExpectedForItem = invoiceItemsForCode.reduce((sum, inv) => {
-      return sum + (inv.NewQty || inv.Qty || 0);
-    }, 0);
-  }
-  
-  // FIRST: Use raw scannedMedicines instead of medicinesArray
-  const scannedItems = (scannedMedicines || []).filter(m => {
-    const medicineCode = String(m.code || m.Itemc || '');
-    const targetCode = String(selectedItemCode);
-    return medicineCode === targetCode;
-  });
+    const batchMap = new Map();
 
-  console.log('Found scanned items:', scannedItems.length);
-
-  scannedItems.forEach(medicine => {
-    // Get batch - try multiple possible field names
-    const batchKey = medicine.actualBatch || medicine.batch || medicine.Batch || 'N/A';
-    const psrlno = String(medicine.psrlno || medicine.Psrlno || 'N/A');
-    const key = `${batchKey}_${psrlno}`;
-
-    if (!batchMap.has(key)) {
-      batchMap.set(key, {
-        batch: batchKey,
-        expiry: medicine.actualExpiry || medicine.expiry || medicine.Expiry || 'N/A',
-        mrp: medicine.actualMrp || medicine.mrp || medicine.MRP || 0,
-        scannedQty: medicine.scannedQty || medicine.quantity || 0,
-        expectedQty: medicine.expectedQty || medicine.NewQty || medicine.Qty || 0,
-        totalExpectedForItem: totalExpectedForItem, // Add total expected for item
-        isMismatchBatch: medicine.isMismatchBatch || false,
-        isMismatchExpiry: medicine.isMismatchExpiry || false,
-        isMismatchMrp: medicine.isMismatchMrp || false,
-        psrlno: psrlno,
-        status: medicine.status || (medicine.scannedQty > 0 ? 'scanned' : 'pending'),
-        pack: medicine.pack || medicine.Pack || '',
-        type: 'scanned'
+    // Calculate total expected quantity for this item from invoice
+    let totalExpectedForItem = 0;
+    if (invItems) {
+      const invoiceItemsForCode = invItems.filter(inv => {
+        const invCode = String(inv.Itemc || inv.code || '');
+        return invCode === String(selectedItemCode);
       });
-    } else {
-      const existing = batchMap.get(key);
-      existing.scannedQty += (medicine.scannedQty || medicine.quantity || 0);
-      existing.isMismatchBatch = existing.isMismatchBatch || medicine.isMismatchBatch;
-      existing.isMismatchExpiry = existing.isMismatchExpiry || medicine.isMismatchExpiry;
-      existing.isMismatchMrp = existing.isMismatchMrp || medicine.isMismatchMrp;
-    }
-  });
 
-  // SECOND: Add expected batches from invoice items
-  if (invItems) {
-    const invoiceBatches = invItems.filter(inv => {
-      const invCode = String(inv.Itemc || inv.code || '');
+      totalExpectedForItem = invoiceItemsForCode.reduce((sum, inv) => {
+        return sum + (inv.NewQty || inv.Qty || 0);
+      }, 0);
+    }
+
+    // FIRST: Use raw scannedMedicines instead of medicinesArray
+    const scannedItems = (scannedMedicines || []).filter(m => {
+      const medicineCode = String(m.code || m.Itemc || '');
       const targetCode = String(selectedItemCode);
-      return invCode === targetCode;
+      return medicineCode === targetCode;
     });
 
-    console.log('Found invoice batches:', invoiceBatches.length);
+    console.log('Found scanned items:', scannedItems.length);
 
-    invoiceBatches.forEach(inv => {
-      const batchKey = inv.Batch || inv.batch || 'N/A';
-      const psrlno = String(inv.Psrlno || inv.psrlno || 'N/A');
+    scannedItems.forEach(medicine => {
+      // Get batch - try multiple possible field names
+      const batchKey = medicine.actualBatch || medicine.batch || medicine.Batch || 'N/A';
+      const psrlno = String(medicine.psrlno || medicine.Psrlno || 'N/A');
       const key = `${batchKey}_${psrlno}`;
 
       if (!batchMap.has(key)) {
-        // This is an expected batch with no scans yet
         batchMap.set(key, {
           batch: batchKey,
-          expiry: inv.Expiry || inv.expiry || 'N/A',
-          mrp: inv.MRP || inv.mrp || 0,
-          scannedQty: 0,
-          expectedQty: inv.NewQty || inv.Qty || 0,
+          expiry: medicine.actualExpiry || medicine.expiry || medicine.Expiry || 'N/A',
+          mrp: medicine.actualMrp || medicine.mrp || medicine.MRP || 0,
+          scannedQty: medicine.scannedQty || medicine.quantity || 0,
+          expectedQty: medicine.expectedQty || medicine.NewQty || medicine.Qty || 0,
           totalExpectedForItem: totalExpectedForItem, // Add total expected for item
-          isMismatchBatch: false,
-          isMismatchExpiry: false,
-          isMismatchMrp: false,
+          isMismatchBatch: medicine.isMismatchBatch || false,
+          isMismatchExpiry: medicine.isMismatchExpiry || false,
+          isMismatchMrp: medicine.isMismatchMrp || false,
           psrlno: psrlno,
-          status: 'not-scanned',
-          pack: inv.Pack || inv.pack || '',
-          type: 'expected',
-          clqty: inv.clqty || 0,
-          pickerName: inv.PickerName || ''
+          status: medicine.status || (medicine.scannedQty > 0 ? 'scanned' : 'pending'),
+          pack: medicine.pack || medicine.Pack || '',
+          type: 'scanned'
         });
       } else {
-        // Batch exists (maybe from scans), update expected quantity
         const existing = batchMap.get(key);
-        // Don't add, just ensure expectedQty matches invoice
-        existing.expectedQty = Math.max(existing.expectedQty, inv.NewQty || inv.Qty || 0);
-        existing.totalExpectedForItem = totalExpectedForItem; // Update total expected
+        existing.scannedQty += (medicine.scannedQty || medicine.quantity || 0);
+        existing.isMismatchBatch = existing.isMismatchBatch || medicine.isMismatchBatch;
+        existing.isMismatchExpiry = existing.isMismatchExpiry || medicine.isMismatchExpiry;
+        existing.isMismatchMrp = existing.isMismatchMrp || medicine.isMismatchMrp;
       }
     });
-  }
 
-  // Convert to array and sort
-  const batches = Array.from(batchMap.values());
-  console.log('Final batches:', batches);
-  
-  // Sort: scanned batches first, then by expected quantity - NO TIMESTAMP SORTING
-  batches.sort((a, b) => {
-    // First priority: scanned batches come first
-    if (a.scannedQty > 0 && b.scannedQty === 0) return -1;
-    if (a.scannedQty === 0 && b.scannedQty > 0) return 1;
-    
-    // Second priority: mismatch batches
-    if (a.isMismatchBatch && !b.isMismatchBatch) return -1;
-    if (!a.isMismatchBatch && b.isMismatchBatch) return 1;
-    
-    // Third priority: higher expected quantity
-    return (b.expectedQty || 0) - (a.expectedQty || 0);
-  });
+    // SECOND: Add expected batches from invoice items
+    if (invItems) {
+      const invoiceBatches = invItems.filter(inv => {
+        const invCode = String(inv.Itemc || inv.code || '');
+        const targetCode = String(selectedItemCode);
+        return invCode === targetCode;
+      });
 
-  return batches;
-};
+      console.log('Found invoice batches:', invoiceBatches.length);
+
+      invoiceBatches.forEach(inv => {
+        const batchKey = inv.Batch || inv.batch || 'N/A';
+        const psrlno = String(inv.Psrlno || inv.psrlno || 'N/A');
+        const key = `${batchKey}_${psrlno}`;
+
+        if (!batchMap.has(key)) {
+          // This is an expected batch with no scans yet
+          batchMap.set(key, {
+            batch: batchKey,
+            expiry: inv.Expiry || inv.expiry || 'N/A',
+            mrp: inv.MRP || inv.mrp || 0,
+            scannedQty: 0,
+            expectedQty: inv.NewQty || inv.Qty || 0,
+            totalExpectedForItem: totalExpectedForItem, // Add total expected for item
+            isMismatchBatch: false,
+            isMismatchExpiry: false,
+            isMismatchMrp: false,
+            psrlno: psrlno,
+            status: 'not-scanned',
+            pack: inv.Pack || inv.pack || '',
+            type: 'expected',
+            clqty: inv.clqty || 0,
+            pickerName: inv.PickerName || ''
+          });
+        } else {
+          // Batch exists (maybe from scans), update expected quantity
+          const existing = batchMap.get(key);
+          // Don't add, just ensure expectedQty matches invoice
+          existing.expectedQty = Math.max(existing.expectedQty, inv.NewQty || inv.Qty || 0);
+          existing.totalExpectedForItem = totalExpectedForItem; // Update total expected
+        }
+      });
+    }
+
+    // Convert to array and sort
+    const batches = Array.from(batchMap.values());
+    console.log('Final batches:', batches);
+
+    // Sort: scanned batches first, then by expected quantity - NO TIMESTAMP SORTING
+    batches.sort((a, b) => {
+      // First priority: scanned batches come first
+      if (a.scannedQty > 0 && b.scannedQty === 0) return -1;
+      if (a.scannedQty === 0 && b.scannedQty > 0) return 1;
+
+      // Second priority: mismatch batches
+      if (a.isMismatchBatch && !b.isMismatchBatch) return -1;
+      if (!a.isMismatchBatch && b.isMismatchBatch) return 1;
+
+      // Third priority: higher expected quantity
+      return (b.expectedQty || 0) - (a.expectedQty || 0);
+    });
+
+    return batches;
+  };
 
   // Handle quantity update from batch details modal
-// Handle quantity update from batch details modal
-// Handle quantity update from batch details modal
-const handleBatchQuantityUpdate = (itemCode, batch, psrlno, operation) => {
-  console.log(`🔄 Batch quantity ${operation} for item: ${itemCode}, batch: ${batch}, psrlno: ${psrlno}`);
+  // Handle quantity update from batch details modal
+  // Handle quantity update from batch details modal
+  const handleBatchQuantityUpdate = (itemCode, batch, psrlno, operation) => {
+    console.log(`🔄 Batch quantity ${operation} for item: ${itemCode}, batch: ${batch}, psrlno: ${psrlno}`);
 
-  // Get all batches for this item
-  const currentBatches = getLiveBatchesForSelectedItem();
-  
-  // Calculate total scanned quantity for this item across ALL batches
-  const totalScannedForItem = currentBatches.reduce((sum, b) => sum + (b.scannedQty || 0), 0);
-  
-  // Find the target batch
-  const targetBatch = currentBatches.find(b => 
-    b.batch === batch && String(b.psrlno) === String(psrlno)
-  );
+    // Get all batches for this item
+    const currentBatches = getLiveBatchesForSelectedItem();
 
-  if (!targetBatch) {
-    console.warn(`⚠️ Batch not found for validation`);
-    return;
-  }
+    // Calculate total scanned quantity for this item across ALL batches
+    const totalScannedForItem = currentBatches.reduce((sum, b) => sum + (b.scannedQty || 0), 0);
 
+    // Find the target batch
+    const targetBatch = currentBatches.find(b =>
+      b.batch === batch && String(b.psrlno) === String(psrlno)
+    );
 
-  let totalExpectedForItem = 0;
-  
-  // Find all invoice items with this item code
-  if (invItems) {
-    const invoiceItemsForCode = invItems.filter(inv => {
-      const invCode = String(inv.Itemc || inv.code || '');
-      return invCode === String(itemCode);
-    });
-    
-    totalExpectedForItem = invoiceItemsForCode.reduce((sum, inv) => {
-      return sum + (inv.NewQty || inv.Qty || 0);
-    }, 0);
-  }
-
-  console.log(`Item ${itemCode} - Total Scanned: ${totalScannedForItem}, Total Expected: ${totalExpectedForItem}`);
-
-  // For increase operation, check against total expected quantity
-  if (operation === 'increase') {
-    // Check if increasing would exceed the total expected quantity for this item
-    if (totalScannedForItem >= totalExpectedForItem) {
+    if (!targetBatch) {
+      console.warn(`⚠️ Batch not found for validation`);
       return;
     }
-  }
 
-  const updatedMedicines = [...(scannedMedicines || [])];
 
-  const matchingMedicines = updatedMedicines.filter(m =>
-    (m.code == itemCode || m.Itemc == itemCode) &&
-    (m.batch == batch || m.actualBatch == batch) &&
-    (m.psrlno == psrlno)
-  );
+    let totalExpectedForItem = 0;
 
-  if (matchingMedicines.length > 0) {
-    const medicineIndex = updatedMedicines.findIndex(m => m.id === matchingMedicines[0].id);
-    const medicine = updatedMedicines[medicineIndex];
-    const currentQty = medicine.scannedQty || 0;
+    // Find all invoice items with this item code
+    if (invItems) {
+      const invoiceItemsForCode = invItems.filter(inv => {
+        const invCode = String(inv.Itemc || inv.code || '');
+        return invCode === String(itemCode);
+      });
 
+      totalExpectedForItem = invoiceItemsForCode.reduce((sum, inv) => {
+        return sum + (inv.NewQty || inv.Qty || 0);
+      }, 0);
+    }
+
+    console.log(`Item ${itemCode} - Total Scanned: ${totalScannedForItem}, Total Expected: ${totalExpectedForItem}`);
+
+    // For increase operation, check against total expected quantity
     if (operation === 'increase') {
-      // Double-check one more time before updating
-      if (totalScannedForItem + 1 > totalExpectedForItem) {
-        alert(`Cannot increase quantity. This would exceed the total expected quantity of ${totalExpectedForItem} for this item.`);
+      // Check if increasing would exceed the total expected quantity for this item
+      if (totalScannedForItem >= totalExpectedForItem) {
         return;
       }
-      
-      updatedMedicines[medicineIndex] = {
-        ...medicine,
-        scannedQty: currentQty + 1,
-        quantity: currentQty + 1,
-        isManualAdjustment: true,
-        lastUpdated: new Date().toISOString()
-      };
-      console.log(`✅ Increased quantity for ${medicine.name} from ${currentQty} to ${currentQty + 1}`);
-    } else if (operation === 'decrease' && currentQty > 0) {
-      updatedMedicines[medicineIndex] = {
-        ...medicine,
-        scannedQty: currentQty - 1,
-        quantity: currentQty - 1,
-        isManualAdjustment: true,
-        lastUpdated: new Date().toISOString()
-      };
-      console.log(`✅ Decreased quantity for ${medicine.name} from ${currentQty} to ${currentQty - 1}`);
     }
 
-    onMedicineUpdate(updatedMedicines);
-  } else {
-    // If no matching medicine found, we need to create one
-    console.log(`Creating new medicine entry for item: ${itemCode}, batch: ${batch}`);
-    
-    // Find the invoice item to get details
-    const invoiceItem = invItems?.find(inv => {
-      const invCode = String(inv.Itemc || inv.code || '');
-      return invCode === String(itemCode);
-    });
-    
-    if (invoiceItem) {
-      const newMedicine = {
-        id: `manual-${Date.now()}-${Math.random()}`,
-        code: itemCode,
-        Itemc: itemCode,
-        name: invoiceItem.ItName || invoiceItem.name || selectedItemName,
-        ItName: invoiceItem.ItName || invoiceItem.name || selectedItemName,
-        batch: batch,
-        actualBatch: batch,
-        psrlno: psrlno,
-        scannedQty: 1,
-        quantity: 1,
-        expectedQty: invoiceItem.NewQty || invoiceItem.Qty || 0,
-        mrp: invoiceItem.MRP || 0,
-        expiry: invoiceItem.Expiry || '',
-        pack: invoiceItem.Pack || '',
-        isManualAdjustment: true,
-        lastUpdated: new Date().toISOString(),
-        Vtype: invoiceItem.Vtype,
-        Vdt: invoiceItem.Vdt,
-        Vno: invoiceItem.Vno,
-        Acno: invoiceItem.Acno,
-        ItLocation: invoiceItem.ItLocation || '',
-        clqty: invoiceItem.clqty || 0
-      };
-      
-      updatedMedicines.push(newMedicine);
+    const updatedMedicines = [...(scannedMedicines || [])];
+
+    const matchingMedicines = updatedMedicines.filter(m =>
+      (m.code == itemCode || m.Itemc == itemCode) &&
+      (m.batch == batch || m.actualBatch == batch) &&
+      (m.psrlno == psrlno)
+    );
+
+    if (matchingMedicines.length > 0) {
+      const medicineIndex = updatedMedicines.findIndex(m => m.id === matchingMedicines[0].id);
+      const medicine = updatedMedicines[medicineIndex];
+      const currentQty = medicine.scannedQty || 0;
+
+      if (operation === 'increase') {
+        // Double-check one more time before updating
+        if (totalScannedForItem + 1 > totalExpectedForItem) {
+          alert(`Cannot increase quantity. This would exceed the total expected quantity of ${totalExpectedForItem} for this item.`);
+          return;
+        }
+
+        updatedMedicines[medicineIndex] = {
+          ...medicine,
+          scannedQty: currentQty + 1,
+          quantity: currentQty + 1,
+          isManualAdjustment: true,
+          lastUpdated: new Date().toISOString()
+        };
+        console.log(`✅ Increased quantity for ${medicine.name} from ${currentQty} to ${currentQty + 1}`);
+      } else if (operation === 'decrease' && currentQty > 0) {
+        updatedMedicines[medicineIndex] = {
+          ...medicine,
+          scannedQty: currentQty - 1,
+          quantity: currentQty - 1,
+          isManualAdjustment: true,
+          lastUpdated: new Date().toISOString()
+        };
+        console.log(`✅ Decreased quantity for ${medicine.name} from ${currentQty} to ${currentQty - 1}`);
+      }
+
       onMedicineUpdate(updatedMedicines);
-      console.log(`✅ Created new medicine entry with quantity 1`);
+    } else {
+      // If no matching medicine found, we need to create one
+      console.log(`Creating new medicine entry for item: ${itemCode}, batch: ${batch}`);
+
+      // Find the invoice item to get details
+      const invoiceItem = invItems?.find(inv => {
+        const invCode = String(inv.Itemc || inv.code || '');
+        return invCode === String(itemCode);
+      });
+
+      if (invoiceItem) {
+        const newMedicine = {
+          id: `manual-${Date.now()}-${Math.random()}`,
+          code: itemCode,
+          Itemc: itemCode,
+          name: invoiceItem.ItName || invoiceItem.name || selectedItemName,
+          ItName: invoiceItem.ItName || invoiceItem.name || selectedItemName,
+          batch: batch,
+          actualBatch: batch,
+          psrlno: psrlno,
+          scannedQty: 1,
+          quantity: 1,
+          expectedQty: invoiceItem.NewQty || invoiceItem.Qty || 0,
+          mrp: invoiceItem.MRP || 0,
+          expiry: invoiceItem.Expiry || '',
+          pack: invoiceItem.Pack || '',
+          isManualAdjustment: true,
+          lastUpdated: new Date().toISOString(),
+          Vtype: invoiceItem.Vtype,
+          Vdt: invoiceItem.Vdt,
+          Vno: invoiceItem.Vno,
+          Acno: invoiceItem.Acno,
+          ItLocation: invoiceItem.ItLocation || '',
+          clqty: invoiceItem.clqty || 0
+        };
+
+        updatedMedicines.push(newMedicine);
+        onMedicineUpdate(updatedMedicines);
+        console.log(`✅ Created new medicine entry with quantity 1`);
+      }
     }
-  }
-};
+  };
 
   // Handle add new batch
   const handleAddBatch = (itemCode, itemName) => {
@@ -652,7 +652,7 @@ const handleBatchQuantityUpdate = (itemCode, batch, psrlno, operation) => {
       invItems.forEach(inv => {
         const itemCode = String(inv.Itemc || inv.code || '');
         if (!itemCode) return;
-        
+
         if (!invoicesByItemCode.has(itemCode)) {
           invoicesByItemCode.set(itemCode, []);
         }
@@ -677,20 +677,20 @@ const handleBatchQuantityUpdate = (itemCode, batch, psrlno, operation) => {
       if (!itemCode) return;
 
       const psrlno = String(medicine.psrlno || medicine.Psrlno || '');
-      
+
       // Find ALL matching invoice items for this item code
       const matchingInvoices = invoicesByItemCode.get(itemCode) || [];
-      
+
       // Get or create item entry
       if (!itemCodeMap.has(itemCode)) {
         // Use the first matching invoice for item details
         const firstInvoice = matchingInvoices[0] || {};
-        
+
         // Calculate total expected quantity for this item
         const itemExpectedQty = matchingInvoices.reduce((sum, inv) => {
           return sum + (inv.NewQty || inv.Qty || 0);
         }, 0);
-        
+
         itemCodeMap.set(itemCode, {
           code: itemCode,
           name: medicine.ItName || medicine.name || firstInvoice?.ItName || 'Unknown',
@@ -709,21 +709,21 @@ const handleBatchQuantityUpdate = (itemCode, batch, psrlno, operation) => {
       }
 
       const item = itemCodeMap.get(itemCode);
-      
+
       // Find matching invoice for this specific scan (by psrlno if available)
       const matchingInvoice = psrlno ? invoiceByPsrlno.get(psrlno) : null;
-      
+
       // Determine display batch (show actual for mismatched, expected for matched)
-      const displayBatch = medicine.isMismatchBatch ? 
-        (medicine.actualBatch || medicine.batch) : 
+      const displayBatch = medicine.isMismatchBatch ?
+        (medicine.actualBatch || medicine.batch) :
         (medicine.batch || medicine.Batch || 'N/A');
 
       // Create a unique key using BOTH batch AND psrlno
       const batchKey = `${displayBatch}_${psrlno}`;
-      
+
       // Find or create batch using the composite key
       let batch = item.batches.find(b => b.batchKey === batchKey);
-      
+
       if (!batch) {
         batch = {
           batchKey: batchKey,
@@ -745,12 +745,12 @@ const handleBatchQuantityUpdate = (itemCode, batch, psrlno, operation) => {
       // Update batch quantities
       const scanQty = medicine.scannedQty || medicine.quantity || 0;
       batch.scannedQty += scanQty;
-      
+
       // Update batch mismatch flags
       batch.isMismatchBatch = batch.isMismatchBatch || (medicine.isMismatchBatch || false);
       batch.isMismatchExpiry = batch.isMismatchExpiry || (medicine.isMismatchExpiry || false);
       batch.isMismatchMrp = batch.isMismatchMrp || (medicine.isMismatchMrp || false);
-      
+
       // Mark psrlno as processed
       if (psrlno) {
         item.processedPsrlno.add(psrlno);
@@ -788,7 +788,7 @@ const handleBatchQuantityUpdate = (itemCode, batch, psrlno, operation) => {
         // Use batch + psrlno composite key for not-scanned items too
         const batchKey = `${item.batch}_${psrlno}`;
         const batch = existingItem.batches.find(b => b.batchKey === batchKey);
-        
+
         if (batch) {
           // Add to existing batch's expected quantity
           batch.expectedQty += (item.expectedQty || 0);
@@ -809,7 +809,7 @@ const handleBatchQuantityUpdate = (itemCode, batch, psrlno, operation) => {
             pickerName: item.PickerName || existingItem.pickerName || '' // Add pickerName for not scanned batches
           });
         }
-        
+
         existingItem.processedPsrlno.add(psrlno);
       }
     });
@@ -819,7 +819,7 @@ const handleBatchQuantityUpdate = (itemCode, batch, psrlno, operation) => {
       // Calculate totals
       item.scannedQty = item.batches.reduce((sum, b) => sum + (b.scannedQty || 0), 0);
       item.expectedQty = item.batches.reduce((sum, b) => sum + (b.expectedQty || 0), 0);
-      item.hasMismatch = item.batches.some(b => 
+      item.hasMismatch = item.batches.some(b =>
         b.isMismatchBatch || b.isMismatchExpiry || b.isMismatchMrp
       );
 
@@ -834,16 +834,16 @@ const handleBatchQuantityUpdate = (itemCode, batch, psrlno, operation) => {
         // First priority: scanned batches come first
         if (a.scannedQty > 0 && b.scannedQty === 0) return -1;
         if (a.scannedQty === 0 && b.scannedQty > 0) return 1;
-        
+
         // Second priority: mismatch batches
         if (a.isMismatchBatch && !b.isMismatchBatch) return -1;
         if (!a.isMismatchBatch && b.isMismatchBatch) return 1;
-        
+
         // Third priority: sort by psrlno
         if (a.psrlno !== b.psrlno) {
           return String(a.psrlno).localeCompare(String(b.psrlno));
         }
-        
+
         // Finally, sort by batch name
         return String(a.batch).localeCompare(String(b.batch));
       });
@@ -883,6 +883,38 @@ const handleBatchQuantityUpdate = (itemCode, batch, psrlno, operation) => {
 
   const stats = calculateStats();
 
+  // Function to check if verification can be completed
+  const canCompleteVerification = () => {
+    if (!selectedInvoice || medicinesArray.length === 0) {
+      return false;
+    }
+
+    const itemCodeList = getItemCodeGroupedList();
+
+    // Check if at least one item has been scanned
+    const hasAtLeastOneScan = itemCodeList.some(item => item.scannedQty > 0);
+
+    // Also check for over-scanned items (optional - you can remove this condition)
+    const hasOverScannedItems = itemCodeList.some(item => item.scannedQty > item.expectedQty);
+
+    // Log the reasons for debugging
+    if (!hasAtLeastOneScan) {
+      console.log('❌ Cannot complete verification: No items have been scanned yet');
+    }
+    if (hasOverScannedItems) {
+      console.log('❌ Cannot complete verification: Has over-scanned items');
+    }
+
+    // Allow completion if:
+    // 1. At least one item has been scanned
+    // 2. No over-scanned items (optional - remove if you want to allow overscan)
+    const canComplete = hasAtLeastOneScan && !hasOverScannedItems;
+
+    console.log(`Verification can be completed: ${canComplete} (Has scan: ${hasAtLeastOneScan}, No overscan: ${!hasOverScannedItems})`);
+
+    return canComplete;
+  };
+
   // Get the main display list (grouped by item code)
   const itemCodeList = getItemCodeGroupedList();
 
@@ -912,19 +944,19 @@ const handleBatchQuantityUpdate = (itemCode, batch, psrlno, operation) => {
     // SORT BY USER SELECTED CRITERIA ONLY - NO TIMESTAMP SORTING
     filtered.sort((a, b) => {
       const safeString = (value) => value === null || value === undefined ? '' : String(value);
-      
+
       switch (sortBy) {
-        case 'code': 
+        case 'code':
           return safeString(a.code).localeCompare(safeString(b.code));
-        case 'name': 
+        case 'name':
           return safeString(a.name).localeCompare(safeString(b.name));
         case 'pickerName': // Add sorting by pickerName
           return safeString(a.pickerName).localeCompare(safeString(b.pickerName));
-        case 'scannedQty': 
+        case 'scannedQty':
           return (b.scannedQty || 0) - (a.scannedQty || 0);
-        case 'expectedQty': 
+        case 'expectedQty':
           return (b.expectedQty || 0) - (a.expectedQty || 0);
-        default: 
+        default:
           return safeString(a.code).localeCompare(safeString(b.code));
       }
     });
@@ -995,7 +1027,7 @@ const handleBatchQuantityUpdate = (itemCode, batch, psrlno, operation) => {
   // Overall Progress Bar Component
   const OverallProgressBar = ({ scannedItems, totalItems }) => {
     const percentage = totalItems > 0 ? (scannedItems / totalItems) * 100 : 0;
-    
+
     return (
       <div className="flex items-center space-x-3 bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
         <div className="flex items-center space-x-2">
@@ -1006,7 +1038,7 @@ const handleBatchQuantityUpdate = (itemCode, batch, psrlno, operation) => {
           <span className="text-sm text-gray-500 ml-1">items</span>
         </div>
         <div className="w-48 h-3 bg-gray-200 rounded-full overflow-hidden">
-          <div 
+          <div
             className="h-full bg-gradient-to-r from-red-500 to-green-500 transition-all duration-300 ease-in-out"
             style={{ width: `${percentage}%` }}
           />
@@ -1298,10 +1330,10 @@ const handleBatchQuantityUpdate = (itemCode, batch, psrlno, operation) => {
             handleOpenBatchDetails(selectedItem.code, selectedItem.name);
           }
           break;
-        case 's':
-          if (event.ctrlKey) {
+        case 'F12': // Changed to End key
+          if (event.ctrlKey) { // Keep Ctrl+End combination
             event.preventDefault();
-            if (shouldShowCompleteButton) setShowCompleteConfirm(true);
+            if (shouldShowCompleteButton && canCompleteVerification()) setShowCompleteConfirm(true);
           }
           break;
         default: break;
@@ -1343,7 +1375,7 @@ const handleBatchQuantityUpdate = (itemCode, batch, psrlno, operation) => {
 
   // Get live batches for the modal (recalculates on every render)
   const liveBatches = getLiveBatchesForSelectedItem();
-  
+
   return (
     <>
       {/* Manual Medicine Add Form Modal */}
@@ -1372,37 +1404,13 @@ const handleBatchQuantityUpdate = (itemCode, batch, psrlno, operation) => {
       />
 
       {/* History Modal */}
-      <HistoryModal 
+      <HistoryModal
         isVisible={showHistoryModal}
         onClose={() => setShowHistoryModal(false)}
         token={token}
       />
 
       <div className="bg-white rounded-lg shadow-lg border border-gray-200 h-full flex flex-col" style={{ minWidth: '1200px' }}>
-        {/* Delete Confirmation Modal */}
-        {showDeleteConfirm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40">
-            <div className="bg-white p-6 rounded-xl shadow-lg max-w-md w-full mx-4">
-              <h3 className="text-lg font-semibold mb-4 text-red-600">Delete Medicine</h3>
-              <p className="mb-4 text-gray-600">Are you sure you want to delete this medicine entry?</p>
-              {medicineToDelete && (
-                <div className="mb-4 p-3 bg-red-50 rounded border border-red-200">
-                  <p className="font-medium text-gray-900">{medicineToDelete.name}</p>
-                  <p className="text-sm text-gray-600">Code: {medicineToDelete.code}</p>
-                  <p className="text-sm text-gray-600">Batch: {medicineToDelete.batch}</p>
-                  <p className="text-sm text-gray-600">Scanned Qty: {medicineToDelete.scannedQty}</p>
-                </div>
-              )}
-              <p className="mb-4 text-sm text-red-600 font-medium">
-                This will delete all {medicineToDelete?.scanIds?.length || 1} scan(s) of this medicine.
-              </p>
-              <div className="flex justify-end space-x-3">
-                <button onClick={cancelDelete} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100">Cancel (Esc)</button>
-                <button onClick={confirmDelete} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Delete (Enter)</button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Complete Verification Confirmation Modal */}
         {showCompleteConfirm && (
@@ -1468,9 +1476,9 @@ const handleBatchQuantityUpdate = (itemCode, batch, psrlno, operation) => {
             </select>
             {selectedInvoice && (
               <div>
-                <OverallProgressBar 
-                  scannedItems={stats.itemsWithScans} 
-                  totalItems={stats.uniqueItems} 
+                <OverallProgressBar
+                  scannedItems={stats.itemsWithScans}
+                  totalItems={stats.uniqueItems}
                 />
               </div>
             )}
@@ -1490,9 +1498,17 @@ const handleBatchQuantityUpdate = (itemCode, batch, psrlno, operation) => {
               {shouldShowCompleteButton && (
                 <button
                   onClick={showCompleteVerificationConfirm}
-                  className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg text-base font-bold shadow-md hover:shadow-lg transition-all duration-200"
+                  disabled={!canCompleteVerification() || isCompletingVerification}
+                  className={`px-6 py-3 rounded-lg text-base font-bold shadow-md hover:shadow-lg transition-all duration-200 flex items-center space-x-2 ${!canCompleteVerification() || isCompletingVerification
+                    ? 'bg-gray-400 cursor-not-allowed hover:bg-gray-400'
+                    : 'bg-green-600 hover:bg-green-700 text-white'
+                    }`}
+                  title={!canCompleteVerification() ? "Complete verification when all items are scanned and no overscan exists" : ""}
                 >
-                  Complete Verification
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Complete Verification</span>
                 </button>
               )}
             </div>
@@ -1590,7 +1606,7 @@ const handleBatchQuantityUpdate = (itemCode, batch, psrlno, operation) => {
                   <span className="ml-3 text-green-600 text-xs font-semibold">Enter: View Batch Details</span>
                 </div>
               )}
-            </div>  
+            </div>
           </div>
         )}
       </div>
