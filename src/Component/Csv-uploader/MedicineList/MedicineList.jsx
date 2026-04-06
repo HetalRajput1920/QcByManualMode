@@ -882,10 +882,10 @@ function MedicineList({
     return canComplete;
   };
 
-  // Get the main display list (grouped by item code) - NO SORTING APPLIED
+  // Get the main display list (grouped by item code) - SORTED BY LOCATION
   const itemCodeList = getItemCodeGroupedList();
 
-  // Filter and sort the main list - FILTERING ONLY, NO SORTING
+  // Filter and sort the main list - FILTERING + SORTING BY LOCATION
   const getFilteredList = () => {
     let filtered = itemCodeList;
 
@@ -908,8 +908,12 @@ function MedicineList({
       filtered = filtered.filter(item => item.scannedQty === 0);
     }
 
-    // NO SORTING - preserve original order from getItemCodeGroupedList()
-    // Filtered list maintains the order from the original data
+    // SORT BY LOCATION (ItLocation) in ascending order
+    filtered.sort((a, b) => {
+      const locA = a.location || '';
+      const locB = b.location || '';
+      return locA.localeCompare(locB, undefined, { numeric: true, sensitivity: 'base' });
+    });
 
     return filtered;
   };
