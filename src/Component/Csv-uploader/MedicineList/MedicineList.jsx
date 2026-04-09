@@ -12,6 +12,8 @@ function MedicineList({
   lastError,
   invItems,
   onVerificationComplete,
+  onInvoiceSelect,
+  clearLocalStorage
 }) {
   console.log(">>>>>><<<<<<<<<  ", selectedInvoice);
   console.log("this is the scanned medicine data > ", scannedMedicines)
@@ -35,11 +37,18 @@ function MedicineList({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [medicineToDelete, setMedicineToDelete] = useState(null);
   const [isCompletingVerification, setIsCompletingVerification] = useState(false);
+  const [isHolding, setIsHolding] = useState(false);
   const [selectedMedicineIndex, setSelectedMedicineIndex] = useState(0);
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const listEndRef = useRef(null);
   const tableRef = useRef(null);
   const headerRef = useRef(null);
+  const theadRef = useRef(null); // Ref for the table header
+
+  const [holdInvoices, setHoldInvoices] = useState([]);
+  const [isLoadingHoldList, setIsLoadingHoldList] = useState(false);
+  const [selectedHoldInvoice, setSelectedHoldInvoice] = useState('');
+  const [isHoldDropdownOpen, setIsHoldDropdownOpen] = useState(false);
 
   // Refs for keyboard navigation
   const keyRepeatTimerRef = useRef(null);
@@ -101,6 +110,105 @@ function MedicineList({
   // Function to open history modal
   const openHistoryModal = () => {
     setShowHistoryModal(true);
+  };
+
+  const fetchHoldInvoices = async () => {
+    try {
+      setIsLoadingHoldList(true);
+      const storedHoldsStr = localStorage.getItem('HELD_QC_INVOICES');
+      const holdsDict = storedHoldsStr ? JSON.parse(storedHoldsStr) : {};
+
+      const heldArray = Object.values(holdsDict);
+      const mappedInvoices = heldArray.map(h => ({
+        Vno: h.invoice.InvoiceNo || h.invoice.Vno || "Unknown",
+        InvoiceNo: h.invoice.InvoiceNo || h.invoice.Vno || "Unknown",
+        Name: h.invoice.CustName || h.invoice.Name || "Unknown",
+        CustName: h.invoice.CustName || h.invoice.Name || "Unknown",
+        Vdt: h.invoice.Vdt,
+        Acno: h.invoice.Acno
+      }));
+      setHoldInvoices(mappedInvoices);
+    } catch (error) {
+      console.error('❌ Error fetching local hold invoices:', error);
+    } finally {
+      setIsLoadingHoldList(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchHoldInvoices();
+  }, []);
+
+  // Dynamically set scroll-padding-top to prevent header from covering first row
+  useEffect(() => {
+    const updateScrollPadding = () => {
+      if (theadRef.current && tableRef.current) {
+        const headerHeight = theadRef.current.offsetHeight;
+        // Set CSS variable on the scrolling container
+        tableRef.current.style.setProperty('--header-height', `${headerHeight}px`);
+        // Also apply scroll-padding-top
+        tableRef.current.style.scrollPaddingTop = `${headerHeight}px`;
+      }
+    };
+
+    updateScrollPadding();
+    window.addEventListener('resize', updateScrollPadding);
+    // Also observe changes in case the header height changes dynamically
+    const resizeObserver = new ResizeObserver(updateScrollPadding);
+    if (theadRef.current) {
+      resizeObserver.observe(theadRef.current);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateScrollPadding);
+      resizeObserver.disconnect();
+    };
+  }, [selectedInvoice]); // Re-run when invoice changes
+
+  const handleLoadHoldInvoice = async (invoice) => {
+    if (!invoice) return;
+
+    try {
+      setIsHolding(true);
+      if (clearLocalStorage) {
+        clearLocalStorage();
+      }
+      setSelectedHoldInvoice('');
+
+      const invNo = invoice.Vno || invoice.InvoiceNo;
+      const storedHoldsStr = localStorage.getItem('HELD_QC_INVOICES');
+      const holdsDict = storedHoldsStr ? JSON.parse(storedHoldsStr) : {};
+
+      const holdData = holdsDict[invNo];
+
+      if (holdData) {
+        const invoiceObj = holdData.invoice;
+        // Restore the original expected raw items precisely back to parent
+        invoiceObj.items = holdData.originalInvItems || invoiceObj.items || [];
+
+        if (onInvoiceSelect) {
+          onInvoiceSelect(invoiceObj);
+        }
+
+        const mappedItems = holdData.scannedMedicines || [];
+
+        if (onMedicineUpdate) {
+          setTimeout(() => {
+            onMedicineUpdate(mappedItems);
+          }, 300);
+        }
+
+        setSelectedHoldInvoice("");
+      } else {
+        alert('❌ No local hold data found for this invoice. It may have been cleared.');
+      }
+
+    } catch (error) {
+      console.error('❌ Error loading local hold data:', error);
+      alert(`❌ Failed to load local hold data: ${error.message}`);
+    } finally {
+      setIsHolding(false);
+    }
   };
 
   const getLiveBatchesForSelectedItem = () => {
@@ -920,13 +1028,23 @@ function MedicineList({
 
   const displayList = getFilteredList();
 
-  // Auto-scroll to selected medicine
+  // Auto-scroll to selected medicine - now with header offset
   useEffect(() => {
     if (tableRef.current && displayList[selectedMedicineIndex]) {
       const selectedRow = tableRef.current.querySelector(`[data-index="${selectedMedicineIndex}"]`);
       if (selectedRow) {
         setTimeout(() => {
-          selectedRow.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+          // Get header height from CSS variable
+          const headerHeight = parseInt(getComputedStyle(tableRef.current).getPropertyValue('--header-height')) || 0;
+          const rowRect = selectedRow.getBoundingClientRect();
+          const containerRect = tableRef.current.getBoundingClientRect();
+          const scrollTop = tableRef.current.scrollTop;
+          const targetTop = rowRect.top - containerRect.top + scrollTop - headerHeight;
+
+          tableRef.current.scrollTo({
+            top: targetTop,
+            behavior: 'smooth'
+          });
         }, 10);
       }
     }
@@ -1204,6 +1322,90 @@ function MedicineList({
     }
   };
 
+  const handleHold = async () => {
+    if (!selectedInvoice) {
+      alert('Please select an invoice first');
+      return;
+    }
+
+    if (!scannedMedicines || scannedMedicines.length === 0) {
+      alert('No scanned data available to hold');
+      return;
+    }
+
+    setIsHolding(true);
+    try {
+      const invNo = selectedInvoice.InvoiceNo || selectedInvoice.Vno;
+
+      // Minify scanned medicines by removing the massive nested originalData 
+      const minifiedScanned = scannedMedicines.map(item => {
+        const { originalData, ...safeItems } = item;
+        return safeItems;
+      });
+
+      const storedHoldsStr = localStorage.getItem('HELD_QC_INVOICES');
+      const holdsDict = storedHoldsStr ? JSON.parse(storedHoldsStr) : {};
+
+      const holdBundle = {
+        invoice: selectedInvoice,
+        originalInvItems: invItems,
+        scannedMedicines: minifiedScanned,
+        timestamp: new Date().toISOString()
+      };
+
+      holdsDict[invNo] = holdBundle;
+
+      try {
+        localStorage.setItem('HELD_QC_INVOICES', JSON.stringify(holdsDict));
+      } catch (storageError) {
+        if (storageError.name === 'QuotaExceededError' || storageError.message.toLowerCase().includes('quota') || storageError.message.toLowerCase().includes('exceeded')) {
+          console.warn("Storage Quota Exceeded! Clearing old/active workspace cache to force save...");
+
+          // Clean up to strictly guarantee space 
+          localStorage.removeItem('csv_viewer_selected_invoice');
+          localStorage.removeItem('csv_viewer_invoice_items');
+          localStorage.removeItem('csv_viewer_scanned_medicines');
+          localStorage.removeItem('HELD_QC_INVOICES');
+
+          const fallbackDict = { [invNo]: holdBundle };
+          localStorage.setItem('HELD_QC_INVOICES', JSON.stringify(fallbackDict));
+          alert('Warning: Browser memory limit reached. Cleared old background cache memory to save this invoice successfully.');
+        } else {
+          throw storageError; // Rethrow actual errors
+        }
+      }
+
+      fetchHoldInvoices();
+
+      console.log('✅ Invoice held successfully locally:', invNo);
+
+      if (clearLocalStorage) {
+        clearLocalStorage();
+      }
+
+    } catch (error) {
+      console.error('❌ Error saving local hold:', error);
+      alert(`❌ Failed to hold locally (Critical Error): ${error.message}`);
+    } finally {
+      setIsHolding(false);
+    }
+  };
+
+  const handleRemoveHoldInvoice = (invNo, e) => {
+    if (e) e.stopPropagation();
+    try {
+      const storedHoldsStr = localStorage.getItem('HELD_QC_INVOICES');
+      const holdsDict = storedHoldsStr ? JSON.parse(storedHoldsStr) : {};
+      if (holdsDict[invNo]) {
+        delete holdsDict[invNo];
+        localStorage.setItem('HELD_QC_INVOICES', JSON.stringify(holdsDict));
+        fetchHoldInvoices();
+      }
+    } catch (error) {
+      console.error('❌ Error removing hold invoice:', error);
+    }
+  };
+
   const handleCompleteVerification = async () => {
     if (!selectedInvoice) {
       alert('Please select an invoice first');
@@ -1236,6 +1438,21 @@ function MedicineList({
 
       if (basketReleased) console.log('✅ Step 2 - Basket released successfully');
       else console.warn('⚠️ Basket release failed, but QC data was inserted');
+
+      // Clear the held invoice from local storage on completion
+      try {
+        const invNo = selectedInvoice.InvoiceNo || selectedInvoice.Vno;
+        const storedHoldsStr = localStorage.getItem('HELD_QC_INVOICES');
+        const holdsDict = storedHoldsStr ? JSON.parse(storedHoldsStr) : {};
+        if (holdsDict && holdsDict[invNo]) {
+          delete holdsDict[invNo];
+          localStorage.setItem('HELD_QC_INVOICES', JSON.stringify(holdsDict));
+          fetchHoldInvoices();
+          console.log(`🧹 Removed completed invoice ${invNo} from Hold Storage`);
+        }
+      } catch (e) {
+        console.error('Failed to cleanup hold storage', e);
+      }
 
       if (onVerificationComplete) onVerificationComplete(verificationResult, basketReleased);
 
@@ -1288,6 +1505,13 @@ function MedicineList({
           event.preventDefault();
           if (shouldShowCompleteButton && canCompleteVerification()) setShowCompleteConfirm(true);
 
+          break;
+        case 'h':
+        case 'H':
+          if (event.ctrlKey) {
+            event.preventDefault();
+            handleHold();
+          }
           break;
         default: break;
       }
@@ -1418,7 +1642,7 @@ function MedicineList({
               onChange={(e) => setSearchTerm(e.target.value)}
               className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-base font-medium"
             />
-            <select
+            {/* <select
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               className="px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-base font-medium bg-white"
@@ -1426,7 +1650,66 @@ function MedicineList({
               {Object.entries(filters).map(([key, label]) => (
                 <option key={key} value={key}>{label}</option>
               ))}
-            </select>
+            </select> */}
+
+            <div className="relative">
+              <div
+                className="flex items-center space-x-2 bg-white rounded-lg border-2 border-gray-300 px-3 py-2 cursor-pointer hover:bg-gray-50 min-w-[260px] justify-between"
+                onClick={() => !isLoadingHoldList && !isHolding && setIsHoldDropdownOpen(!isHoldDropdownOpen)}
+              >
+                <span className="text-sm font-semibold text-gray-700">
+                  {isLoadingHoldList ? 'Loading...' : `Choose Hold Invoice (${holdInvoices.length})`}
+                </span>
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); fetchHoldInvoices(); }}
+                    className="p-1 rounded hover:bg-gray-200 text-gray-500"
+                    title="Refresh List"
+                  >
+                    <svg className={`w-4 h-4 ${isLoadingHoldList ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </button>
+                  <svg className={`w-4 h-4 text-gray-500 transition-transform ${isHoldDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+
+              {isHoldDropdownOpen && (
+                <div className="absolute top-full mt-1 left-0 w-full max-h-64 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-xl z-50 divide-y divide-gray-100">
+                  {holdInvoices.length === 0 ? (
+                    <div className="px-4 py-3 text-sm text-gray-500 italic">No held invoices found</div>
+                  ) : (
+                    holdInvoices.map((inv) => (
+                      <div
+                        key={inv.Vno || inv.InvoiceNo}
+                        className="group flex flex-col px-4 py-3 hover:bg-purple-50 cursor-pointer transition-colors"
+                        onClick={() => {
+                          handleLoadHoldInvoice(inv);
+                          setIsHoldDropdownOpen(false);
+                        }}
+                      >
+                        <div className="flex justify-between items-center w-full">
+                          <span className="font-bold text-gray-900">{inv.Vno || inv.InvoiceNo}</span>
+                          <button
+                            onClick={(e) => handleRemoveHoldInvoice(inv.Vno || inv.InvoiceNo, e)}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                            title="Clear from storage"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                        <span className="text-xs text-gray-500 truncate" title={inv.Name || inv.CustName}>{inv.Name || inv.CustName}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
             {selectedInvoice && (
               <div>
                 <OverallProgressBar
@@ -1468,8 +1751,8 @@ function MedicineList({
           </div>
         </div>
 
-        {/* Scrollable Table with Sticky Header */}
-        <div className="flex-1 overflow-auto bg-white" ref={tableRef}>
+        {/* Scrollable Table with Sticky Header - fixed scroll padding */}
+        <div className="flex-1 overflow-auto bg-white" ref={tableRef} style={{ scrollPaddingTop: 'var(--header-height, 0px)' }}>
           {!selectedInvoice ? (
             <div className="flex flex-col items-center justify-center h-64 text-gray-500">
               <div className="text-4xl mb-4">📄</div>
@@ -1488,7 +1771,7 @@ function MedicineList({
             </div>
           ) : (
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-purple-100 sticky top-0 z-10 shadow-sm">
+              <thead ref={theadRef} className="bg-purple-100 sticky top-0 z-10 shadow-sm">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">S.No</th>
                   <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Loc</th>
@@ -1508,7 +1791,8 @@ function MedicineList({
                     key={item.code}
                     data-index={index}
                     onClick={() => setSelectedMedicineIndex(index)}
-                    className={`cursor-pointer transition-colors duration-200 ${getRowBackgroundColor(index)}`}
+                    className={`cursor-pointer transition-colors duration-200 ${getRowBackgroundColor(index)} ${index === 0 ? 'pt-10' : ''}`}
+                    style={{ scrollMarginTop: 'var(--header-height, 0px)' }}
                   >
                     <td className="px-6 py-4 whitespace-nowrap text-base font-semibold text-gray-900">{index + 1}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-base font-medium text-gray-900">{item.location}</td>
@@ -1546,19 +1830,45 @@ function MedicineList({
         </div>
 
         {/* Footer with summary */}
-        {selectedInvoice && displayList.length > 0 && (
+        {selectedInvoice && (
           <div className="border-t-2 border-gray-200 bg-gray-100 px-6 py-4">
-            <div className="flex justify-between items-center">
-              {displayList[selectedMedicineIndex] && (
-                <div className="text-sm bg-white px-4 py-2 rounded-lg shadow-sm">
-                  <span className="font-semibold text-blue-600">🎯 Selected:</span>
-                  <span className="ml-2 font-medium">{displayList[selectedMedicineIndex].name}</span>
-                  <span className="mx-2 text-gray-400">|</span>
-                  <span className="font-bold text-green-600">{displayList[selectedMedicineIndex].scannedQty}/{displayList[selectedMedicineIndex].expectedQty}</span>
-                  <span className="ml-3 text-gray-500 text-xs">[{selectedMedicineIndex + 1} of {displayList.length}]</span>
-                  <span className="ml-3 text-green-600 text-xs font-semibold">Enter: View Batch Details</span>
-                </div>
-              )}
+            <div className="flex justify-between items-center w-full">
+              <div>
+                {displayList[selectedMedicineIndex] ? (
+                  <div className="text-sm bg-white px-4 py-2 rounded-lg shadow-sm">
+                    <span className="font-semibold text-blue-600">🎯 Selected:</span>
+                    <span className="ml-2 font-medium">{displayList[selectedMedicineIndex].name}</span>
+                    <span className="mx-2 text-gray-400">|</span>
+                    <span className="font-bold text-green-600">{displayList[selectedMedicineIndex].scannedQty}/{displayList[selectedMedicineIndex].expectedQty}</span>
+                    <span className="ml-3 text-gray-500 text-xs">[{selectedMedicineIndex + 1} of {displayList.length}]</span>
+                    <span className="ml-3 text-green-600 text-xs font-semibold">Enter: View Batch Details</span>
+                  </div>
+                ) : (
+                  <div className="text-sm font-medium text-gray-400 italic">No medicine selected</div>
+                )}
+              </div>
+
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={handleHold}
+                  disabled={isHolding}
+                  className={`px-6 py-2.5 rounded-lg font-bold shadow-sm transition-all duration-200 flex items-center space-x-2 
+                    ${isHolding ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-orange-100 border border-orange-300 text-orange-700 hover:bg-orange-200'}`}
+                  title="Hold current invoice and clear data (Ctrl + H)"
+                >
+                  {isHolding ? (
+                    <svg className="animate-spin h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  )}
+                  <span>{isHolding ? 'Holding...' : 'Hold Invoice'}</span>
+                </button>
+              </div>
             </div>
           </div>
         )}

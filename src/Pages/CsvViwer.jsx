@@ -148,6 +148,15 @@ function CsvViewer() {
 
   };
 
+  const resetAndClearStorage = () => {
+    clearLocalStorage();
+    setSelectedInvoice(null);
+    setInvItems([]);
+    setScannedMedicines([]);
+    setLastError(null);
+    setWorkflowStatus('idle');
+  };
+
   // Add beforeunload event to save data before page refresh/close
   useEffect(() => {
     const handleBeforeUnload = (e) => {
@@ -1549,6 +1558,8 @@ function CsvViewer() {
             workflowStatus={workflowStatus}
             uniqueItemsCount={getUniqueScannedItems()}
             checkManualQuantityAdjustment={checkManualQuantityAdjustment}
+            onInvoiceSelect={handleInvoiceSelect}
+            clearLocalStorage={resetAndClearStorage}
           />
         </div>
       </div>
